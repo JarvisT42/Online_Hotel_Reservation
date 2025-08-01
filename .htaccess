@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Allow direct access to existing files and folders
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Only allow clean URLs like /about or /contact
+RewriteRule ^([a-zA-Z0-9_-]+)$ $1.php [L,QSA]
+
+# All other URLs (e.g. /from/ing-it) → show 404
+RewriteRule .* /Online_Hotel_Reservation/404.php [L]
