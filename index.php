@@ -26,14 +26,18 @@
 	</div>
 
 	<!-- Hero Section -->
-	<section class="hero d-flex align-items-center">
+	<section class="hero d-flex align-items-center" style="background: url('images/mainasd.webp') center center / cover no-repeat; height: 100vh;">
 		<div class="container text-center text-white">
 			<div class="hero-content">
 				<h2 class="display-3 mb-4">Experience Comfort & Convenience</h2>
-				<p class="lead mb-5">Enjoy the essentials of home in a simple, welcoming space at SHIOJI APARTELLE — your comfortable and affordable retreat.</p>
+				<p class="lead mb-5">
+					Enjoy the essentials of home in a simple, welcoming space at
+					<strong>SHIOJI APARTELLE</strong> — your comfortable and affordable retreat.
+				</p>
 			</div>
 		</div>
 	</section>
+
 
 	<!-- Booking Form -->
 	<div class="container position-relative">
@@ -116,7 +120,7 @@
 				<!-- Repeatable gallery-item -->
 				<div class="row g-4">
 					<div class="col-md-6 col-lg-4 gallery-item" data-category="rooms">
-						<img src="https://images.unsplash.com/photo-1611892440504-42a792e24d32?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Standard Room" class="gallery-img">
+						<img src="images/487240206_2215694595514353_2829456240816778387_n.jpg" alt="Standard Room" class="gallery-img">
 						<div class="gallery-overlay">
 							<h3 class="h4 mb-2">Standard Room</h3>
 							<p class="mb-1">Comfortable accommodation with all essential amenities</p>
@@ -160,9 +164,9 @@
 					</div>
 
 					<div class="col-md-6 col-lg-4 gallery-item" data-category="rooms">
-						<img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" alt="Deluxe Room" class="gallery-img">
+						<img src="images/486615699_2215694562181023_2379785450127093130_n.jpg" alt="Deluxe Room" class="gallery-img">
 						<div class="gallery-overlay">
-							<h3 class="h4 mb-2">Deluxe Room</h3>
+							<h3 class="h4 mb-2">Standard Room</h3>
 							<p class="mb-1">Spacious accommodation with premium amenities</p>
 							<span class="gallery-category badge">Rooms</span>
 						</div>

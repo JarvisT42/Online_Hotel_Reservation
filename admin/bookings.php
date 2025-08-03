@@ -43,6 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $booking_id = $_POST['booking_id'];
         $room_id = $_POST['room_id'];
         $checkin_date = date('Y-m-d');
+        $status = "checked_in";
+
+
         // Step 1: Transfer data from bookings to guests
         $transferQuery = "
             INSERT INTO guests (
@@ -66,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
                 no_of_guest,
               
-                status,
+                    '$status',
                 '$room_id'
             FROM bookings
             WHERE booking_id = '$booking_id'
@@ -166,15 +169,18 @@ $roomResult = $conn->query($roomQuery);
             </div>
 
             <div class="user-info">
-                <div class="notification">
+                <!-- <div class="notification">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge">3</span>
+                </div> -->
+                <img src="https://www.w3schools.com/howto/img_avatar.png" alt="Admin Avatar" class="rounded-circle" width="40" height="40">
+                <div>
+                    <div class="fw-bold">
+                        <?php echo $_SESSION['admin_name']; ?>
+                    </div>
+                    <div class="text-muted small">Administrator</div>
                 </div>
-                <img src="https://randomuser.me/api/portraits/men/41.jpg" alt="Admin">
-                <div class="user-details">
-                    <div class="name">John Doe</div>
-                    <div class="role">Administrator</div>
-                </div>
+
             </div>
         </div>
 

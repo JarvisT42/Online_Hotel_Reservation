@@ -13,27 +13,26 @@ include 'connect.php';
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_room_price'])) {
     include 'connect.php'; // DB connection
 
-    $room_type_id = $_POST['room_type_id'];
+    $room_type = trim($_POST['room_type']);
     $room_price = floatval($_POST['room_price']);
 
-    if ($room_price <= 0) {
-        $_SESSION['error_message'] = "Invalid price.";
+    if ($room_type === '' || $room_price <= 0) {
+        $_SESSION['error_message'] = "Invalid room type or price.";
         header("Location: " . $_SERVER['HTTP_REFERER']);
         exit;
     }
 
-    // Step: Update room_types table directly
-    $updateTypeStmt = $conn->prepare("UPDATE room_types SET price = ? WHERE room_type_id = ?");
-    $updateTypeStmt->bind_param("di", $room_price, $room_type_id);
+    // Insert new room type and price
+    $insertStmt = $conn->prepare("INSERT INTO room_types (type, price) VALUES (?, ?)");
+    $insertStmt->bind_param("sd", $room_type, $room_price);
 
-    if ($updateTypeStmt->execute()) {
-        $_SESSION['success_message'] = "Room price updated successfully.";
+    if ($insertStmt->execute()) {
+        $_SESSION['success_message'] = "New room type added successfully.";
     } else {
-        $_SESSION['error_message'] = "Failed to update room price: " . $conn->error;
+        $_SESSION['error_message'] = "Failed to add room type: " . $conn->error;
     }
 
-    $updateTypeStmt->close();
-
+    $insertStmt->close();
     header("Location: " . $_SERVER['HTTP_REFERER']);
     exit;
 }
@@ -43,10 +42,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_room_price']))
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
     $room_type = trim($_POST['room_type']);
 
+    $room_price = trim($_POST['room_price']);
 
     // Insert into room_types
-    $stmt = $conn->prepare("INSERT INTO room_types (type) VALUES ( ?)");
-    $stmt->bind_param("s", $room_type);
+    $stmt = $conn->prepare("INSERT INTO room_types (type, price) VALUES ( ?, ?)");
+    $stmt->bind_param("sd", $room_type, $room_price);
 
     if ($stmt->execute()) {
         $_SESSION['success_message'] = "Room type added successfully.";
@@ -116,21 +116,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
 
 
             <div class="user-info">
-                <div class="notification">
+                <!-- <div class="notification">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge">3</span>
-                </div>
-                <img src="https://randomuser.me/api/portraits/men/41.jpg" alt="Admin">
+                </div> -->
+                <img src="https://www.w3schools.com/howto/img_avatar.png" alt="Admin Avatar" class="rounded-circle" width="40" height="40">
                 <div>
-                    <div class="fw-bold">John Doe</div>
+                    <div class="fw-bold">
+                        <?php echo $_SESSION['admin_name']; ?>
+                    </div>
                     <div class="text-muted small">Administrator</div>
                 </div>
+
             </div>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Room List</h5>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoomModal">
-                <i class="fas fa-plus me-1"></i> Add Room
+                <i class="fas fa-plus me-1"></i> Add Room Type
             </button>
         </div>
         <!-- Add Room Modal -->
@@ -152,6 +155,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
                         <div class="mb-3">
                             <label for="room_type" class="form-label">Room Type Name</label>
                             <input type="text" name="room_type" id="room_type" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="room_price" class="form-label">Room Price</label>
+                            <input type="text" name="room_price" id="room_price" class="form-control" required>
                         </div>
 
                     </div>
@@ -182,7 +189,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
                             <th>Date Created</th>
 
 
-                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -197,19 +203,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
                             echo "<tr>";
 
                             echo "<td>" . htmlspecialchars($row['type']) . "</td>";
-                            echo "<td>₱" . number_format($row['price'], 2) . "</td>";
+                            echo "<td>₱" . number_format($row['price'], 2) . "  
+    <a href='#' 
+       data-bs-toggle='modal' 
+       data-bs-target='#editRoomTypeModal' 
+       data-id='" . htmlspecialchars($row['room_type_id'], ENT_QUOTES) . "' 
+       data-type='" . htmlspecialchars($row['type'], ENT_QUOTES) . "' 
+       data-price='" . htmlspecialchars($row['price'], ENT_QUOTES) . "' 
+       class='btn btn-sm btn-warning ms-2 edit-room-btn'>
+       Edit
+    </a>
+</td>";
+
+
                             echo "<td>" . htmlspecialchars(date('F j, Y h:i A', strtotime($row['created_at']))) . "</td>";
 
-                            echo "<td>
-        <a 
-            data-bs-toggle='modal' 
-            data-bs-target='#editRoomTypeModal' 
-            data-id='" . $row['room_type_id'] . "' 
-            class='btn btn-sm btn-warning'>
-            Edit
-        </a>
-        
-    </td>";
+
                             //        echo "<td>
                             //     <a data-bs-toggle="modal" data-bs-target="#editRoomTypeModal"?id=" . $row['room_type_id'] . "' class='btn btn-sm btn-warning'>Edit</a>
                             //     <a href='delete_room_type.php?id=" . $row['room_type_id'] . "' class='btn btn-sm btn-danger' onclick=\"return confirm('Are you sure you want to delete this room type?');\">Delete</a>
@@ -234,20 +243,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
             <div class="modal-dialog">
                 <form action="" method="POST" class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="editRoomTypeModalLabel">Edit Room Type</h5>
+                        <h5 class="modal-title">Edit Room Type</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
+
                     <div class="modal-body">
                         <input type="hidden" name="room_type_id" id="editRoomTypeId">
+
                         <div class="mb-3">
-                            <label for="editRoomType" class="form-label">Room Price</label>
-                            <input type="number" name="room_price" id="editRoomType" class="form-control" required>
+                            <label for="editRoomType" class="form-label">Room Type</label>
+                            <input type="text" name="room_type" id="editRoomType" class="form-control" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editRoomPrice" class="form-label">Room Price</label>
+                            <input type="number" name="room_price" id="editRoomPrice" class="form-control" required>
                         </div>
                     </div>
+
                     <div class="modal-footer">
                         <button type="submit" name="update_room_price" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
+
             </div>
         </div>
 
@@ -279,6 +297,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
     <script>
         $(document).ready(function() {
             $('#myTable').DataTable();
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const editButtons = document.querySelectorAll(".edit-room-btn");
+
+            editButtons.forEach(button => {
+                button.addEventListener("click", function() {
+                    const roomTypeId = this.getAttribute("data-id");
+                    const roomType = this.getAttribute("data-type");
+                    const roomPrice = this.getAttribute("data-price");
+
+                    // Fill in the modal fields
+                    document.getElementById("editRoomTypeId").value = roomTypeId;
+                    document.getElementById("editRoomType").value = roomType;
+                    document.getElementById("editRoomPrice").value = roomPrice;
+                });
+            });
         });
     </script>
 

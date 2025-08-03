@@ -138,15 +138,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
 
 
             <div class="user-info">
-                <div class="notification">
+                <!-- <div class="notification">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge">3</span>
-                </div>
-                <img src="https://randomuser.me/api/portraits/men/41.jpg" alt="Admin">
+                </div> -->
+                <img src="https://www.w3schools.com/howto/img_avatar.png" alt="Admin Avatar" class="rounded-circle" width="40" height="40">
                 <div>
-                    <div class="fw-bold">John Doe</div>
+                    <div class="fw-bold">
+                        <?php echo $_SESSION['admin_name']; ?>
+                    </div>
                     <div class="text-muted small">Administrator</div>
                 </div>
+
             </div>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-3">

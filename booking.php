@@ -48,13 +48,13 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHIOJI APARTELLE - Book Your Stay</title>
     <!-- Bootstrap CSS -->
-    <link href="node_modules/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
-	<link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
@@ -169,13 +169,13 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                                 </select>
                             </div>
 
-                         
+
 
                         </div>
 
                         <div class="booking-summary">
                             <h5 class="mb-3">Booking Summary</h5>
-                          
+
                             <div class="summary-item">
                                 <span>Check-In:</span>
                                 <span id="summaryCheckIn"></span>
@@ -238,7 +238,7 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                                     <span class="detail-value" id="confirmationTime"></span>
                                     <input type="hidden" name="checkin_time" id="hiddenTime" />
                                 </div>
-                            
+
                                 <div class="detail-item">
                                     <span class="detail-label">Guests:</span>
                                     <span class="detail-value" id="confirmationGuests"></span>
@@ -294,7 +294,7 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                                 <?= $booking['booking_time'] === 'morning' ? 'Morning (8AM-12PM)' : 'Afternoon (1PM-5PM)' ?>
                             </span>
                         </div>
-                  
+
                         <div class="detail-item">
                             <span class="detail-label">Guests:</span>
                             <span class="detail-value"><?= $booking['no_of_guest'] ?></span>

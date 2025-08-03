@@ -8,6 +8,31 @@ if (!isset($_SESSION['admin_logged_in'])) {
 
 include 'connect.php';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {
+
+    $guest_id = trim($_POST['guest_id']);
+    $checkout_date = date('Y-m-d');
+
+    // Correct SQL with placeholders
+    $stmt = $conn->prepare("UPDATE guests SET checkout_date = ?, status = 'checked_out' WHERE guest_id = ?");
+    $stmt->bind_param("si", $checkout_date, $guest_id); // "s" for string (date), "i" for integer (guest_id)
+
+    if ($stmt->execute()) {
+        $_SESSION['success_message'] = "Guest successfully checked out.";
+    } else {
+        $_SESSION['error_message'] = "Failed to check out guest.";
+    }
+
+    $stmt->close();
+
+    // Redirect to avoid form resubmission
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+
+
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle room assignment
@@ -35,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Fetch bookings
-$sql = "SELECT * FROM guests WHERE status IS NOT  NULL";
+$sql = "SELECT * FROM guests WHERE status = 'checked_in' ";
 $result = $conn->query($sql);
 
 // Fetch available rooms
@@ -68,7 +93,7 @@ $roomResult = $conn->query($roomQuery);
         <div class="topbar">
             <div class="topbar-left">
                 <div class="d-flex align-items-center">
-                    <h4>Bookings</h4>
+                    <h4>Guest</h4>
                     <div class="ms-3 text-muted d-none d-md-block">
                         <i class="fas fa-bed me-1"></i>
                         <span>Total <?php echo $result->num_rows; ?> bookings</span>
@@ -77,15 +102,18 @@ $roomResult = $conn->query($roomQuery);
             </div>
 
             <div class="user-info">
-                <div class="notification">
+                <!-- <div class="notification">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge">3</span>
+                </div> -->
+                <img src="https://www.w3schools.com/howto/img_avatar.png" alt="Admin Avatar" class="rounded-circle" width="40" height="40">
+                <div>
+                    <div class="fw-bold">
+                        <?php echo $_SESSION['admin_name']; ?>
+                    </div>
+                    <div class="text-muted small">Administrator</div>
                 </div>
-                <img src="https://randomuser.me/api/portraits/men/41.jpg" alt="Admin">
-                <div class="user-details">
-                    <div class="name">John Doe</div>
-                    <div class="role">Administrator</div>
-                </div>
+
             </div>
         </div>
 
@@ -109,14 +137,14 @@ $roomResult = $conn->query($roomQuery);
         <!-- Card Content -->
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-list me-2"></i> Booking List
+                <i class="fas fa-list me-2"></i> Guest List
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table id="bookingsTable" class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Booking ID</th>
+                                <!-- <th>Booking ID</th> -->
                                 <th>Guest Name</th>
                                 <th>Check-in Date</th>
                                 <th>Room Type</th>
@@ -129,7 +157,7 @@ $roomResult = $conn->query($roomQuery);
                             <?php if ($result && $result->num_rows > 0): ?>
                                 <?php while ($row = $result->fetch_assoc()): ?>
                                     <tr>
-                                        <td>SHIOJI-<?php echo str_pad($row['guest_id'],  STR_PAD_LEFT); ?></td>
+                                        <!-- <td>SHIOJI-<?php echo str_pad($row['guest_id'], 5, '0', STR_PAD_LEFT); ?></td> -->
                                         <td><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
                                         <td><?php echo date('M d, Y', strtotime($row['checkin_date'])); ?></td>
                                         <td><?php echo htmlspecialchars($row['room_type'] ?? 'Standard'); ?></td>
@@ -137,54 +165,52 @@ $roomResult = $conn->query($roomQuery);
                                             <span class="status-badge status-<?php echo $row['status']; ?>">
                                                 <?php
                                                 $status = $row['status'];
-                                                if ($status == 'confirmed') echo 'Confirmed';
-                                                elseif ($status == 'checked_in') echo 'Checked In';
-                                                elseif ($status == 'checked_out') echo 'Checked Out';
-                                                elseif ($status == 'cancelled') echo 'Cancelled';
-                                                else echo ucfirst($status);
+                                                echo match ($status) {
+                                                    'confirmed'   => 'Confirmed',
+                                                    'checked_in'  => 'Checked In',
+                                                    'checked_out' => 'Checked Out',
+                                                    'cancelled'   => 'Cancelled',
+                                                    default       => ucfirst($status),
+                                                };
                                                 ?>
                                             </span>
                                         </td>
                                         <td>
                                             <?php if (!empty($row['room_id'])): ?>
-                                                <span class="badge bg-primary">Room <?php echo $row['room_id']; ?></span>
+                                                <span class="badge bg-primary">Room <?php echo htmlspecialchars($row['room_id']); ?></span>
                                             <?php else: ?>
                                                 <span class="text-muted">Not assigned</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php if (empty($row['room_id'])): ?>
-                                                <button class="btn btn-primary btn-sm assign-btn"
+                                                <button
+                                                    class="btn btn-primary btn-sm assign-btn"
                                                     data-book-id="<?php echo $row['guest_id']; ?>"
                                                     data-guest-name="<?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?>"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#assignModal">
                                                     Assign Room
                                                 </button>
-
                                             <?php else: ?>
-                                                <div class="d-flex gap-2">
-
-                                                    <button class="btn btn-success btn-sm" disabled>
-                                                        <i class="fas fa-check"></i> Assigned
+                                                <form action="" method="POST" onsubmit="return confirm('Are you sure you want to check out this guest?');">
+                                                    <input type="hidden" name="guest_id" value="<?php echo htmlspecialchars($row['guest_id']); ?>">
+                                                    <button type="submit" name="check_out" class="btn btn-secondary btn-sm">
+                                                        <i class="fas fa-door-open"></i> Check Out
                                                     </button>
-                                                    <button class="btn btn-secondary btn-sm" disabled>
-                                                        <i class="fas fa-door-open"></i> Checked Out
-                                                    </button>
-
-
-                                                </div>
+                                                </form>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>
-                                <tr>
+                                <!-- <tr>
                                     <td colspan="7" class="text-center py-4">No bookings found</td>
-                                </tr>
+                                </tr> -->
                             <?php endif; ?>
                         </tbody>
                     </table>
+
                 </div>
             </div>
         </div>

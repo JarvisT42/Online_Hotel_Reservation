@@ -42,15 +42,18 @@ if (!isset($_SESSION['admin_logged_in'])) {
                 </div>
             </div>
             <div class="user-info">
-                <div class="notification">
+                <!-- <div class="notification">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge">3</span>
-                </div>
-                <img src="https://randomuser.me/api/portraits/men/41.jpg" alt="Admin">
+                </div> -->
+                <img src="https://www.w3schools.com/howto/img_avatar.png" alt="Admin Avatar" class="rounded-circle" width="40" height="40">
                 <div>
-                    <div class="fw-bold">John Doe</div>
+                    <div class="fw-bold">
+                        <?php echo $_SESSION['admin_name']; ?>
+                    </div>
                     <div class="text-muted small">Administrator</div>
                 </div>
+
             </div>
         </div>
 
@@ -63,89 +66,94 @@ if (!isset($_SESSION['admin_logged_in'])) {
 
             <!-- Stats Cards -->
             <div class="stats-grid">
-                <div class="stat-card">
-                    <i class="fas fa-calendar-check"></i>
-                    <div class="card-title">Pending Bookings</div>
-                    <div class="card-value">
-                        <?php
-                        // DB connection
+                <a href="bookings.php" class="text-decoration-none text-dark">
+
+                    <div class="stat-card">
+                        <i class="fas fa-calendar-check"></i>
+                        <div class="card-title">Pending Bookings</div>
+                        <div class="card-value">
+                            <?php
+                            // DB connection
 
 
 
-                        // Query
-                        $sql = "SELECT COUNT(*) AS total FROM bookings WHERE status = 'pending'";
-                        $result = $conn->query($sql);
-                        $row = $result->fetch_assoc();
+                            // Query
+                            $sql = "SELECT COUNT(*) AS total FROM bookings WHERE status = 'pending'";
+                            $result = $conn->query($sql);
+                            $row = $result->fetch_assoc();
 
-                        echo $row['total']; // display the pending count
-                        ?>
+                            echo $row['total']; // display the pending count
+                            ?>
+                        </div>
+                        <div class="card-change">All booking request</div>
+                        <div class="position-absolute top-0 end-0 p-3 opacity-10">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
                     </div>
-                    <div class="card-change">All booking request</div>
-                    <div class="position-absolute top-0 end-0 p-3 opacity-10">
-                        <i class="fas fa-calendar-check fa-2x"></i>
+
+                </a>
+                <a href="rooms.php" class="text-decoration-none text-dark">
+
+                    <div class="stat-card">
+                        <i class="fas fa-bed"></i>
+                        <div class="card-title">Rooms Occupied</div>
+                        <div class="card-value">
+                            <?php
+                            // Database connection
+
+
+                            // Query total rooms
+                            $totalQuery = "SELECT COUNT(*) AS total FROM rooms";
+                            $totalResult = $conn->query($totalQuery);
+                            $totalRooms = $totalResult->fetch_assoc()['total'];
+
+                            // Query occupied rooms
+                            $occupiedQuery = "SELECT COUNT(*) AS occupied FROM rooms WHERE status = 'occupied'";
+                            $occupiedResult = $conn->query($occupiedQuery);
+                            $occupiedRooms = $occupiedResult->fetch_assoc()['occupied'];
+
+                            // Display format: 24/36
+                            echo $occupiedRooms . '/' . $totalRooms;
+                            ?>
+                        </div>
+                        <div class="card-change">
+                            <?php
+                            // Calculate occupancy percentage
+                            $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0;
+                            echo $occupancyRate . '% occupancy rate';
+                            ?>
+                        </div>
+                        <div class="position-absolute top-0 end-0 p-3 opacity-10">
+                            <i class="fas fa-bed fa-2x"></i>
+                        </div>
                     </div>
-                </div>
 
+                </a>
+                <a href="guest.php" class="text-decoration-none text-dark">
 
-                <div class="stat-card">
-                    <i class="fas fa-bed"></i>
-                    <div class="card-title">Rooms Occupied</div>
-                    <div class="card-value">
-                        <?php
-                        // Database connection
+                    <div class="stat-card">
+                        <i class="fas fa-user-check"></i>
+                        <div class="card-title">Guests Checked-In</div>
+                        <div class="card-value">
+                            <?php
+                            // Database connection
+                            // Query
+                            $sql = "SELECT COUNT(*) AS total FROM guests WHERE status = 'checked_in'";
+                            $result = $conn->query($sql);
+                            $row = $result->fetch_assoc();
 
-
-                        // Query total rooms
-                        $totalQuery = "SELECT COUNT(*) AS total FROM rooms";
-                        $totalResult = $conn->query($totalQuery);
-                        $totalRooms = $totalResult->fetch_assoc()['total'];
-
-                        // Query occupied rooms
-                        $occupiedQuery = "SELECT COUNT(*) AS occupied FROM rooms WHERE status = 'occupied'";
-                        $occupiedResult = $conn->query($occupiedQuery);
-                        $occupiedRooms = $occupiedResult->fetch_assoc()['occupied'];
-
-                        // Display format: 24/36
-                        echo $occupiedRooms . '/' . $totalRooms;
-                        ?>
+                            echo $row['total']; // display the pending count
+                            ?>
+                        </div>
+                        <div class="card-change">
+                            Currently Checked In
+                        </div>
+                        <div class="position-absolute top-0 end-0 p-3 opacity-10">
+                            <i class="fas fa-user-check fa-2x"></i>
+                        </div>
                     </div>
-                    <div class="card-change">
-                        <?php
-                        // Calculate occupancy percentage
-                        $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0;
-                        echo $occupancyRate . '% occupancy rate';
-                        ?>
-                    </div>
-                    <div class="position-absolute top-0 end-0 p-3 opacity-10">
-                        <i class="fas fa-bed fa-2x"></i>
-                    </div>
-                </div>
 
-
-
-                <div class="stat-card">
-                    <i class="fas fa-user-check"></i>
-                    <div class="card-title">Guests Checked-In</div>
-                    <div class="card-value">
-                        <?php
-                        // Database connection
-                        // Query
-                        $sql = "SELECT COUNT(*) AS total FROM guests WHERE status = 'checked_in'";
-                        $result = $conn->query($sql);
-                        $row = $result->fetch_assoc();
-
-                        echo $row['total']; // display the pending count
-                        ?>
-                    </div>
-                    <div class="card-change">
-                        Currently Checked In
-                    </div>
-                    <div class="position-absolute top-0 end-0 p-3 opacity-10">
-                        <i class="fas fa-user-check fa-2x"></i>
-                    </div>
-                </div>
-
-
+                </a>
 
             </div>
 
@@ -155,7 +163,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
 
 
             <!-- Recent Customers -->
-            <div class="table-card">
+            <!-- <div class="table-card">
                 <div class="table-header">
                     <h5>Recent Customers</h5>
                     <a href="#" class="btn btn-sm btn-primary">View All</a>
@@ -226,7 +234,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
 
 
                 </div>
-            </div>
+            </div> -->
         </div>
     </div>
 
@@ -255,62 +263,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
         document.getElementById('currentDate').textContent = today.toLocaleDateString('en-US', options);
 
         // Sidebar toggle functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebar = document.getElementById('sidebar');
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const closeSidebar = document.getElementById('closeSidebar');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
-            const collapseBtn = document.getElementById('collapseSidebar');
 
-            // Toggle sidebar on button click
-            sidebarToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('expanded');
-                sidebarOverlay.classList.toggle('active');
-            });
-
-            // Collapse sidebar
-            collapseBtn.addEventListener('click', function() {
-                sidebar.classList.toggle('collapsed');
-            });
-
-            // Close sidebar when clicking the close button
-            closeSidebar.addEventListener('click', function() {
-                sidebar.classList.remove('expanded');
-                sidebarOverlay.classList.remove('active');
-            });
-
-            // Close sidebar when clicking outside
-            sidebarOverlay.addEventListener('click', function() {
-                sidebar.classList.remove('expanded');
-                sidebarOverlay.classList.remove('active');
-            });
-
-            // Handle window resize
-            function handleResize() {
-                if (window.innerWidth > 992) {
-                    sidebar.classList.remove('expanded');
-                    sidebarOverlay.classList.remove('active');
-                }
-            }
-
-            // Add resize event listener
-            window.addEventListener('resize', handleResize);
-
-            // Initialize with correct state
-            handleResize();
-
-            // Time period buttons
-            const timeButtons = document.querySelectorAll('.time-btn');
-            timeButtons.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    timeButtons.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                });
-            });
-
-            // Initialize charts
-            initCharts();
-        });
 
         // Initialize charts
         function initCharts() {
@@ -414,6 +367,10 @@ if (!isset($_SESSION['admin_logged_in'])) {
             });
         }
     </script>
+
+
+
+
 </body>
 
 </html>

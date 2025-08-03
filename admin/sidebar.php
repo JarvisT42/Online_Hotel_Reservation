@@ -1,6 +1,9 @@
   <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
-          <h4>SHIOJI <span>APARTELLE</span></h4>
+          <a href="../index.php" style="text-decoration: none; color: inherit;">
+              <h4>SHIOJI <span>APARTELLE</span></h4>
+          </a>
+
           <button class="close-sidebar" id="closeSidebar">
               <i class="fas fa-times"></i>
           </button>
@@ -47,6 +50,12 @@
               </a>
           </li> -->
           <li class="nav-item">
+              <a class="nav-link <?php if ($currentPage == 'history.php') echo 'active'; ?>" href="history.php">
+                  <i class="fas fa-users"></i>
+                  <span class="nav-text">Guest History</span>
+              </a>
+          </li>
+          <li class="nav-item">
               <a class="nav-link <?php if ($currentPage == 'settings.php') echo 'active'; ?>" href="setting.php">
                   <i class="fas fa-cog"></i>
                   <span class="nav-text">Settings</span>
@@ -64,7 +73,7 @@
           <li class="nav-item ">
               <a class="nav-link <?php if ($currentPage == 'invoice.php') echo 'active'; ?>" href="invoice.php">
                   <i class="fas fa-sign-out-alt"></i>
-                  <span class="nav-text">Invoice</span>
+                  <span class="nav-text">Transactions</span>
               </a>
           </li>
 
@@ -82,3 +91,62 @@
           </button>
       </div>
   </div>
+
+  <script>
+      document.addEventListener('DOMContentLoaded', function() {
+          const sidebar = document.getElementById('sidebar');
+          const sidebarToggle = document.getElementById('sidebarToggle');
+          const closeSidebar = document.getElementById('closeSidebar');
+          const sidebarOverlay = document.getElementById('sidebarOverlay');
+          const collapseBtn = document.getElementById('collapseSidebar');
+
+          // Toggle sidebar on button click
+          sidebarToggle.addEventListener('click', function() {
+              sidebar.classList.toggle('expanded');
+              sidebarOverlay.classList.toggle('active');
+          });
+
+          // Collapse sidebar
+          collapseBtn.addEventListener('click', function() {
+              sidebar.classList.toggle('collapsed');
+          });
+
+          // Close sidebar when clicking the close button
+          closeSidebar.addEventListener('click', function() {
+              sidebar.classList.remove('expanded');
+              sidebarOverlay.classList.remove('active');
+          });
+
+          // Close sidebar when clicking outside
+          sidebarOverlay.addEventListener('click', function() {
+              sidebar.classList.remove('expanded');
+              sidebarOverlay.classList.remove('active');
+          });
+
+          // Handle window resize
+          function handleResize() {
+              if (window.innerWidth > 992) {
+                  sidebar.classList.remove('expanded');
+                  sidebarOverlay.classList.remove('active');
+              }
+          }
+
+          // Add resize event listener
+          window.addEventListener('resize', handleResize);
+
+          // Initialize with correct state
+          handleResize();
+
+          // Time period buttons
+          const timeButtons = document.querySelectorAll('.time-btn');
+          timeButtons.forEach(btn => {
+              btn.addEventListener('click', function() {
+                  timeButtons.forEach(b => b.classList.remove('active'));
+                  this.classList.add('active');
+              });
+          });
+
+          // Initialize charts
+          initCharts();
+      });
+  </script>

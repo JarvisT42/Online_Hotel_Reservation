@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 include 'connect.php'; // Your DB connection file
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -26,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Login success
             $_SESSION['admin_logged_in'] = true; // Set session variable to indicate login
             $_SESSION['admin_id'] = $user['admin_id']; // or your primary key field
-            $_SESSION['admin_username'] = $user['username'];
+            $_SESSION['admin_name'] = $user['name'];
 
             // Redirect to dashboard
             header("Location: admin/dashboard.php");
@@ -48,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHIOJI APARTELLE - Admin Login</title>
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <!-- <link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css"> -->
 
     <!-- Font Awesome -->
     <!-- Google Fonts -->
