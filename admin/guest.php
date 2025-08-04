@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 session_start();
 
 if (!isset($_SESSION['admin_logged_in'])) {
@@ -18,7 +21,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {
     $stmt->bind_param("si", $checkout_date, $guest_id); // "s" for string (date), "i" for integer (guest_id)
 
     if ($stmt->execute()) {
-        $_SESSION['success_message'] = "Guest successfully checked out.";
+
+
+        // Now, update rooms table
+        $roomStmt = $conn->prepare("UPDATE rooms SET status = 'available', guest_id = null WHERE guest_id = ?");
+        $roomStmt->bind_param("i", $guest_id);
+
+        if ($roomStmt->execute()) {
+            $_SESSION['success_message'] = "Guest successfully checked out and room marked as available.";
+        } else {
+            $_SESSION['error_message'] = "Guest checked out, but failed to update room status.";
+        }
+
+        $roomStmt->close();
     } else {
         $_SESSION['error_message'] = "Failed to check out guest.";
     }

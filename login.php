@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 session_start();
 
 include 'connect.php'; // Your DB connection file
@@ -143,6 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.95rem;
             transition: all 0.3s;
             height: auto;
+            width: 100%;
         }
 
         .form-control:focus {
@@ -469,21 +473,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
 
 
-        <!-- <div class="divider">
-            <span>Or continue with</span>
-        </div>
 
-        <div class="social-login">
-            <a href="#" class="social-btn facebook">
-                <i class="fab fa-facebook-f"></i>
-            </a>
-            <a href="#" class="social-btn google">
-                <i class="fab fa-google"></i>
-            </a>
-            <a href="#" class="social-btn twitter">
-                <i class="fab fa-twitter"></i>
-            </a>
-        </div> -->
 
         <div class="register-link">
             Don't have an account? <a href="#">Request Access</a>

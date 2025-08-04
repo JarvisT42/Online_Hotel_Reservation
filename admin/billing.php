@@ -87,15 +87,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
         <!-- Summary Boxes with Icons -->
-        <div class="row mb-4">
+        <!-- <div class="row mb-4">
             <div class="col-md-6">
+                <?php
+                // Assume $conn is your active mysqli connection
+                $sql = "SELECT
+                g.guest_id,
+                g.first_name,
+                g.last_name,
+                g.checkin_date,
+                r.room_id,
+                rt.type AS room_type
+                FROM guests g
+                LEFT JOIN rooms r ON g.room_id = r.room_id
+                LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
+                WHERE g.checkin_date IS NOT NULL
+                ORDER BY g.checkin_date DESC";
+
+                $result = $conn->query($sql);
+                $total_bills = $result->num_rows;
+                ?>
+
                 <div class="card text-center shadow-sm p-3">
                     <div class="mb-2">
                         <i class="fas fa-file-invoice fa-2x text-primary"></i>
                     </div>
-                    <h3 class="mb-1">18</h3>
+                    <h3 class="mb-1"><?php echo $total_bills; ?></h3>
                     <small class="text-muted">Total Bills</small>
                 </div>
+
             </div>
 
             <div class="col-md-6">
@@ -103,12 +123,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="mb-2">
                         <i class="fas fa-hourglass-half fa-2x text-warning"></i>
                     </div>
-                    <h3 class="mb-1">5</h3>
+                    <h3 class="mb-1">0</h3>
                     <small class="text-muted">Pending Payments</small>
                 </div>
             </div>
 
-        </div>
+        </div> -->
 
         <!-- Billing Form -->
         <div class="card shadow-sm p-4 mb-4">

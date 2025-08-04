@@ -29,7 +29,7 @@
 	<section class="hero d-flex align-items-center" style="background: url('images/mainasd.webp') center center / cover no-repeat; height: 100vh;">
 		<div class="container text-center text-white">
 			<div class="hero-content">
-				<h2 class="display-3 mb-4">Experience Comfort & Convenience</h2>
+				<h2 class="display-3 mb-4">Experia Comfort & Convenience</h2>
 				<p class="lead mb-5">
 					Enjoy the essentials of home in a simple, welcoming space at
 					<strong>SHIOJI APARTELLE</strong> — your comfortable and affordable retreat.
