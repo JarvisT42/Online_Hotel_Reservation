@@ -1,5 +1,5 @@
 <?php
-include 'connect.php';
+include '../connect.php';
 
 if (isset($_POST['room_id'])) {
     $room_id = trim($_POST['room_id']);

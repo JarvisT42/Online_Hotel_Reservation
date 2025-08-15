@@ -9,7 +9,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-include 'connect.php';
+include '../connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {
 

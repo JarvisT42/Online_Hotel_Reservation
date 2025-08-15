@@ -61,6 +61,12 @@
                   <span class="nav-text">Settings</span>
               </a>
           </li>
+             <li class="nav-item">
+              <a class="nav-link <?php if ($currentPage == 'archive.php') echo 'active'; ?>" href="archive.php">
+                  <i class="fas fa-cog"></i>
+                  <span class="nav-text">Archive</span>
+              </a>
+          </li>
 
           <u class="mt-4">&nbsp;&nbsp;Finance</u>
 

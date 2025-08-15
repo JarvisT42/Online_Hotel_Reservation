@@ -9,9 +9,11 @@ if (!isset($_SESSION['admin_logged_in'])) {
 ?>
 
 <?php
-include 'connect.php';
+include '../connect.php';
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_room'])) {
 
 
     $room_number = trim($_POST['room_number']);
@@ -44,7 +46,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $check->close();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['occupied'])) {
     $room_id = $_POST['room_id'];
 
     // 1. Check current status
@@ -81,6 +85,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
         echo "Error preparing select statement: " . $conn->error;
     }
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['available'])) {
+    $room_id = $_POST['room_id'];
+
+    // 1. Check current status
+    $checkSql = "SELECT status FROM rooms WHERE room_id = ?";
+    $stmt = $conn->prepare($checkSql);
+
+    if ($stmt) {
+        $stmt->bind_param("s", $room_id);
+        $stmt->execute();
+        $stmt->bind_result($currentStatus);
+        $stmt->fetch();
+        $stmt->close();
+
+        // 2. Determine the new status
+        $newStatus = ($currentStatus === 'available') ? NULL : 'vailable';
+
+        // 3. Update the status
+        $updateSql = "UPDATE rooms SET status = ? WHERE room_id = ?";
+        $stmt = $conn->prepare($updateSql);
+
+        if ($stmt) {
+            $stmt->bind_param("ss", $newStatus, $room_id);
+
+            if ($stmt->execute()) {
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit();
+            } else {
+                echo "Error executing update: " . $stmt->error;
+            }
+        } else {
+            echo "Error preparing update statement: " . $conn->error;
+        }
+    } else {
+        echo "Error preparing select statement: " . $conn->error;
+    }
+}
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
+    $room_id = $_POST['room_id'];
+
+    $updateSql = "UPDATE rooms SET archive = 'yes' WHERE room_id = ?";
+    $stmt = $conn->prepare($updateSql);
+
+    if ($stmt) {
+        $stmt->bind_param("i", $room_id);
+        if ($stmt->execute()) {
+            // Redirect back with success
+            header("Location: rooms.php?msg=Room archived successfully");
+            exit();
+        } else {
+            echo "Error executing query: " . $stmt->error;
+        }
+        $stmt->close();
+    } else {
+        echo "Error preparing statement: " . $conn->error;
+    }
+}
+
+
 
 ?>
 <!DOCTYPE html>
@@ -160,8 +226,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
         </div>
         <!-- Add Room Modal -->
         <?php if (isset($_GET['exist']) && $_GET['exist'] == 1): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                Room number already exists. <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div id="roomExistsAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+                Room number already exists — either active or in the archive.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         <?php endif; ?>
 
@@ -219,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Add Room</button>
+                        <button type="submit" name="add_room" class="btn btn-primary">Add Room</button>
                     </div>
                 </form>
             </div>
@@ -283,12 +350,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
                     </thead>
                     <tbody>
                         <?php
-                        include 'connect.php'; // Your DB connection
+                        include '../connect.php'; // Your DB connection
 
                         $sql = "SELECT rooms.room_id, rooms.status, guests.first_name, guests.last_name, room_types.type
-                FROM rooms
-                LEFT JOIN guests ON rooms.guest_id = guests.guest_id
-                LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id";
+        FROM rooms
+        LEFT JOIN guests ON rooms.guest_id = guests.guest_id
+        LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
+        WHERE rooms.archive = 'no'";
 
                         $result = $conn->query($sql);
 
@@ -301,33 +369,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
                             $fullName = trim($firstName . ' ' . $lastName);
 
                             echo "<td>" . htmlspecialchars($fullName ?: 'No guest') . "</td>";
-
                             echo "<td>" . htmlspecialchars($row['type'] ?? 'N/A') . "</td>";
 
                             $status = $row['status'] === 'occupied' ? 'Occupied' : 'Available';
                             $badgeClass = $row['status'] === 'occupied' ? 'status-confirmed' : 'status-available';
 
-                            // Button label and color
-                            if ($row['status'] === 'occupied') {
-                                $buttonLabel = 'Mark as Available';
-                                $buttonClass = 'btn-outline-danger'; // Red
-                            } else {
-                                $buttonLabel = 'Mark as Occupied';
-                                $buttonClass = 'btn-outline-success'; // Green
-                            }
-
                             echo "<td><span class='status-badge $badgeClass'>" . htmlspecialchars($status) . "</span></td>";
 
-                            echo "<td>
-        <form action='' method='POST' onsubmit=\"return confirm('Are you sure you want to $buttonLabel?');\">
-            <input type='hidden' name='room_id' value='" . htmlspecialchars($row['room_id']) . "'>
-            <button type='submit' class='btn btn-sm $buttonClass btn-action'>$buttonLabel</button>
-        </form>
-    </td>";
+                            echo "<td>";
 
+                            if ($row['status'] === 'occupied') {
+                                // Show only Mark as Available button
+                                echo "<form action='' method='POST' style='display:inline-block;' onsubmit=\"return confirm('Are you sure you want to Mark as Available?');\">
+                <input type='hidden' name='room_id' value='" . htmlspecialchars($row['room_id']) . "'>
+                <button type='submit' name='available' class='btn btn-sm btn-outline-danger btn-action'>Mark as Available</button>
+              </form>";
+                            } else {
+                                // Show Mark as Occupied button
+                                echo '<form action="" method="POST" style="display:inline-block;" onsubmit="return confirm(\'Change room status?\');">
+    <input type="hidden" name="room_id" value="' . htmlspecialchars($row['room_id']) . '">
+    <button type="submit" name="occupied" class="btn btn-sm btn-outline-success btn-action">
+        Mark as Occupied
+    </button>
+</form>';
+
+
+                                // Show Archive button
+                                echo '<form action="" method="POST" style="display:inline-block; margin-left:5px;" 
+        onsubmit="return confirm(\'Are you sure you want to Archive this room?\');">
+        <input type="hidden" name="room_id" value="' . htmlspecialchars($row['room_id']) . '">
+        <button type="submit" name="archive" class="btn btn-sm btn-outline-warning btn-action">Archive</button>
+      </form>';
+                            }
+
+                            echo "</td>";
                             echo "</tr>";
                         }
                         ?>
+
                     </tbody>
 
 
@@ -338,7 +417,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])) {
         </div>
 
     </div>
-
+    <script src="timeout.js"></script>
 
     <script src="../node_modules/jquery/dist/jquery.min.js"></script>
     <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

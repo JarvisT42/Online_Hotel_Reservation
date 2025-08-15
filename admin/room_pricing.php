@@ -9,9 +9,9 @@ if (!isset($_SESSION['admin_logged_in'])) {
 ?>
 
 <?php
-include 'connect.php';
+include '../connect.php';
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_room_price'])) {
-    include 'connect.php'; // DB connection
+    include '../connect.php'; // DB connection
 
     $room_type = trim($_POST['room_type']);
     $room_price = floatval($_POST['room_price']);

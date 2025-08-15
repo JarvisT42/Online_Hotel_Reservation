@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'connect.php';
+include '../connect.php';
 if (!isset($_SESSION['admin_logged_in'])) {
     // Not logged in, redirect to login page
     header("Location: ../login.php");

@@ -1,8 +1,47 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['admin_logged_in'])) {
+    // Not logged in, redirect to login page
+    header("Location: ../login.php");
+    exit;
+}
+?>
+
+<?php
+include '../connect.php';
+
+
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['unarchive'])) {
+    $room_id = $_POST['room_id'];
+
+    $updateSql = "UPDATE rooms SET archive = 'no' WHERE room_id = ?";
+    $stmt = $conn->prepare($updateSql);
+
+    if ($stmt) {
+        $stmt->bind_param("i", $room_id);
+        if ($stmt->execute()) {
+            // Redirect back with success
+            header("Location: archive.php?msg=Room archived successfully");
+            exit();
+        } else {
+            echo "Error executing query: " . $stmt->error;
+        }
+        $stmt->close();
+    } else {
+        echo "Error preparing statement: " . $conn->error;
+    }
+}
+
+
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'head.php'; ?>
-<link href="../node_modules/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="../node_modules/datatables.net-bs5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+
 
 <style>
     .status-badge {
@@ -43,25 +82,39 @@
         <div class="topbar">
             <div class="topbar-left">
                 <div class="d-flex align-items-center">
-                    <h4 class="mb-0">Dashboard</h4>
+                    <h4 class="mb-0">Rooms</h4>
                     <div class="ms-3 text-muted d-none d-md-block">
-                        <i class="fas fa-calendar me-1"></i>
-                        <span id="currentDate">June 6, 2023</span>
+                        <i class="fas fa-bed me-1"></i>
+                        <span id="currentDate">Available 9</span>
                     </div>
                 </div>
+
             </div>
+
+
             <div class="user-info">
-                <div class="notification">
+                <!-- <div class="notification">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge">3</span>
-                </div>
-                <img src="https://randomuser.me/api/portraits/men/41.jpg" alt="Admin">
+                </div> -->
+                <img src="https://www.w3schools.com/howto/img_avatar.png" alt="Admin Avatar" class="rounded-circle" width="40" height="40">
                 <div>
-                    <div class="fw-bold">John Doe</div>
+                    <div class="fw-bold">
+                        <?php echo $_SESSION['admin_name']; ?>
+                    </div>
                     <div class="text-muted small">Administrator</div>
                 </div>
+
             </div>
         </div>
+
+        <!-- Add Room Modal -->
+
+
+
+
+
+
 
         <!-- Dashboard Content -->
         <div class="room-content">
@@ -70,8 +123,9 @@
                     <thead>
                         <tr>
                             <th>Room#</th>
-                            <th>Guess Name</th>
-                            <th>Status</th>
+                            <th>Room Type</th>
+
+
 
 
                             <th>Action</th>
@@ -79,27 +133,38 @@
                     </thead>
                     <tbody>
                         <?php
-                        include '../connect.php'; // Your DB connection
+                        include '../connect.php'; // DB connection
 
-                        $sql = "SELECT rooms.room_id, rooms.status, guest.firstname
-                        FROM rooms 
-                        LEFT JOIN guest ON rooms.guest_id = guest.guest_id";
+                        // Only get archived rooms
+                        $sql = "SELECT rooms.room_id, room_types.type
+        FROM rooms
+        LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
+        WHERE rooms.archive = 'yes'";
+
                         $result = $conn->query($sql);
 
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr>";
-                            echo "<td>" . htmlspecialchars($row['room_id']) . "</td>";
-                            echo "<td>" . htmlspecialchars($row['firstname'] ?? 'No guest') . "</td>";
-                            echo "<td><span class='status-badge " .
-                                ($row['status'] === 'occupied' ? 'status-confirmed' : 'status-available') . "'>" .
-                                htmlspecialchars($row['status']) .
-                                "</span></td>";
-                            echo "<td><button class='btn btn-sm btn-outline-primary btn-action' data-room-id='" .
-                                $row['room_id'] . "'>Toggle</button></td>";
+                            echo "<td>Room " . htmlspecialchars($row['room_id']) . "</td>";
+                            echo "<td>" . htmlspecialchars($row['type'] ?? 'N/A') . "</td>";
+
+                            // Unarchive button
+                            echo "<td>
+            <form action='' method='POST' style='display:inline-block;' 
+                  onsubmit=\"return confirm('Are you sure you want to Unarchive this room?');\">
+                <input type='hidden' name='room_id' value='" . htmlspecialchars($row['room_id']) . "'>
+                <button type='submit' name='unarchive' class='btn btn-sm btn-outline-primary btn-action'>
+                    Unarchive
+                </button>
+            </form>
+          </td>";
                             echo "</tr>";
                         }
                         ?>
                     </tbody>
+
+
+
 
                     save button
                 </table>
@@ -133,7 +198,7 @@
     </script>
 
 
-    <!-- Bootstrap JS -->
+
 
 </body>
 

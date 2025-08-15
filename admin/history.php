@@ -6,7 +6,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-include 'connect.php';
+include '../connect.php';
 
 
 // Fetch bookings

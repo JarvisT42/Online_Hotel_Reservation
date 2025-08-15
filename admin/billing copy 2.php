@@ -6,6 +6,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
 }
 
 include '../connect.php';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['pay'])) {
         include '../connect.php';
@@ -13,13 +14,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $guest_id = $_POST['guest_id'];
         $bill_month = $_POST['bill_month'];
         $additional_charges = $_POST['description'];
+
         $amount = (float) $_POST['amount'];
 
-        // Clean up the total amount (remove peso symbol and commas)
-        $total_amount_raw = $_POST['total_amount'];
-        $total_amount = floatval(preg_replace('/[^\d.]/', '', $total_amount_raw));
+        // Extract the price from "single (₱5,000.00)"
+        $room_price_str = $_POST['room_price'];
+        preg_match('/[\d,]+\.\d{2}/', $room_price_str, $matches);
 
-        $paid = 1; // assuming is_paid is a boolean/int in DB
+        if (!empty($matches[0])) {
+            // Remove commas and convert to float
+            $room_price = (float) str_replace(',', '', $matches[0]);
+        } else {
+            $room_price = 0; // default if no match
+        }
+
+        $total_amount = $amount + $room_price;
+
+
+        $paid = "paid";
 
         // Get room price via guest_id
         $stmt = $conn->prepare("SELECT room_type_id, room_id FROM rooms WHERE guest_id = ?");
@@ -27,39 +39,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $result = $stmt->get_result();
 
+        $room_type_id = null;
         if ($row = $result->fetch_assoc()) {
             $room_id = $row['room_id'];
+
             $room_type_id = $row['room_type_id'];
         }
 
-        // Insert into transactions
-        $stmt = $conn->prepare("
-            INSERT INTO transactions 
-            (guest_id, room_id, room_type_id, bill_month, description, amount, total_amount, is_paid) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->bind_param(
-            "iiissddi",
-            $guest_id,
-            $room_id,
-            $room_type_id,
-            $bill_month,
-            $additional_charges,
-            $amount,
-            $total_amount,
-            $paid
-        );
+        $room_price = 0;
+        if ($room_type_id !== null) {
+            $stmt = $conn->prepare("SELECT price FROM room_types WHERE room_type_id = ?");
+            $stmt->bind_param("i", $room_type_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
-        if ($stmt->execute()) {
-            $_SESSION['success_message'] = "Bill successfully recorded.";
-        } else {
-            $_SESSION['error_message'] = "Error saving bill: " . $stmt->error;
+            if ($row = $result->fetch_assoc()) {
+                $room_price = $row['price'];
+            }
         }
 
+
+
+        $stmt = $conn->prepare("INSERT INTO transactions (guest_id, room_id, room_type_id, bill_month, description, amount, total_amount, is_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("iiissdds", $guest_id, $room_id, $room_type_id, $bill_month, $additional_charges, $amount, $total_amount, $paid);
+        $stmt->execute();
+
+        // 2. Insert each additional service
+
+
+        $_SESSION['success_message'] = "Bill successfully recorded.";
         header("Location: " . $_SERVER['PHP_SELF']);
         exit;
     }
 }
+
+
 
 
 
@@ -116,50 +130,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Billing Form -->
         <div class="card shadow-sm p-4 mb-4">
             <?php
-            // Fetch guest + room data
+            // Fetch guests with room data
             $sql = "
-            SELECT 
-                guests.guest_id, 
-                guests.first_name, 
-                guests.last_name, 
-                room_types.type AS room_type, 
-                room_types.price,
-                guests.checkin_date
-            FROM guests
-            LEFT JOIN rooms ON guests.room_id = rooms.room_id
-            LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
-        ";
+                SELECT 
+                    guests.guest_id, 
+                    guests.first_name, 
+                    guests.last_name, 
+                    room_types.type AS room_type, 
+                    room_types.price 
+                FROM guests
+                LEFT JOIN rooms ON guests.room_id = rooms.room_id
+                LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
+            ";
             $result = $conn->query($sql);
 
+            // Prepare guest options with room info in JavaScript
             $guestData = [];
-            $optionsHtml = [];
-
-            function getUnpaidMonthsgg($checkinDate, $guestId, $conn)
-            {
-                $unpaidMonths = [];
-                $start = new DateTime($checkinDate);
-                $start->modify('first day of this month');
-
-                $now = new DateTime();
-                $now->modify('first day of this month');
-
-                while ($start <= $now) {
-                    $billMonth = $start->format('Y-m');
-                    $stmt = $conn->prepare("SELECT 1 FROM transactions WHERE guest_id = ? AND bill_month = ?");
-                    $stmt->bind_param("is", $guestId, $billMonth);
-                    $stmt->execute();
-                    $stmt->store_result();
-
-                    if ($stmt->num_rows === 0) {
-                        $unpaidMonths[] = [
-                            'value' => $billMonth,
-                            'label' => $start->format('F Y')
-                        ];
-                    }
-                    $start->modify('+1 month');
-                }
-                return $unpaidMonths;
-            }
+            $optionsHtml = '';
 
             if ($result && $result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
@@ -168,15 +155,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $roomType = htmlspecialchars($row['room_type'] ?? 'N/A');
                     $price = isset($row['price']) ? number_format($row['price'], 2) : '0.00';
 
-                    $unpaid = getUnpaidMonthsgg($row['checkin_date'], $guestId, $conn);
-
                     $guestData[$guestId] = [
                         'room_type' => $roomType,
-                        'price' => $price,
-                        'unpaid_months' => $unpaid
+                        'price' => $price
                     ];
 
-                    $optionsHtml[] = "<option value='{$guestId}'>{$guestName}</option>";
+                    $optionsHtml .= "<option value='{$guestId}'>{$guestName}</option>";
                 }
             }
             ?>
@@ -188,24 +172,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="form-label">Select Guest</label>
                         <select class="form-select" name="guest_id" id="guestSelect" required>
                             <option value="">-- Select Guest --</option>
-                            <?= implode('', $optionsHtml) ?>
+                            <?= $optionsHtml ?>
                         </select>
                     </div>
 
-                    <!-- Room Type Info -->
+                    <!-- Room Type Info (readonly) -->
                     <div class="mb-3 col-md-6">
                         <label class="form-label">Room Type & Price</label>
-                        <input type="text" class="form-control" id="roomInfo" readonly>
-                        <input type="hidden" name="room_price" id="roomPrice">
+                        <input type="text" name="room_price" class=" form-control" id="roomInfo" readonly>
                     </div>
                 </div>
 
-                <!-- Unpaid Months Dropdown -->
+                <!-- Month -->
                 <div class="mb-3">
                     <label class="form-label">For the Month of</label>
-                    <select class="form-select" name="bill_month" id="billMonthSelect" required>
-                        <option value="">-- Select Month --</option>
-                    </select>
+                    <input type="month" class="form-control" name="bill_month" required>
                 </div>
 
                 <!-- Additional Charges -->
@@ -216,69 +197,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="text" class="form-control" name="description" placeholder="Description">
                         </div>
                         <div class="col-md-4">
-                            <input type="number" class="form-control" name="amount" id="additionalAmount" placeholder="Amount" step="0.01" min="0">
+                            <input type="number" class="form-control" name="amount" placeholder="Amount" step="0.01" min="0">
                         </div>
                     </div>
                 </div>
 
-                <!-- Total Amount -->
-                <div class="mb-3">
-                    <label class="form-label">Total Amount</label>
-                    <input type="text" name="total_amount" class="form-control" id="totalAmount" readonly>
-                </div>
-
                 <button type="submit" name="pay" class="btn btn-primary">Pay Bill</button>
             </form>
-
-
-            <script>
-                const guestData = <?= json_encode($guestData) ?>;
-
-                document.getElementById('guestSelect').addEventListener('change', function() {
-                    const selectedId = this.value;
-                    const roomInfo = document.getElementById('roomInfo');
-                    const monthSelect = document.getElementById('billMonthSelect');
-                    const roomPriceInput = document.getElementById('roomPrice');
-
-                    // Reset month dropdown
-                    monthSelect.innerHTML = '<option value="">-- Select Month --</option>';
-
-                    if (guestData[selectedId]) {
-                        const price = parseFloat(guestData[selectedId].price.replace(/,/g, '')) || 0;
-
-                        // Display in room info
-                        roomInfo.value = `${guestData[selectedId].room_type} (₱${guestData[selectedId].price})`;
-
-                        // Store numeric price for calculation
-                        roomPriceInput.value = price;
-
-                        // Populate unpaid months
-                        guestData[selectedId].unpaid_months.forEach(month => {
-                            const opt = document.createElement('option');
-                            opt.value = month.value;
-                            opt.textContent = month.label;
-                            monthSelect.appendChild(opt);
-                        });
-
-                        updateTotal();
-                    } else {
-                        roomInfo.value = '';
-                        roomPriceInput.value = '';
-                        updateTotal();
-                    }
-                });
-
-                document.getElementById('additionalAmount').addEventListener('input', updateTotal);
-
-                function updateTotal() {
-                    const roomPrice = parseFloat(document.getElementById('roomPrice').value) || 0;
-                    const additional = parseFloat(document.getElementById('additionalAmount').value) || 0;
-                    const total = roomPrice + additional;
-
-                    document.getElementById('totalAmount').value = `₱${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-                }
-            </script>
-
 
             <!-- JS to auto-fill room info -->
             <script>

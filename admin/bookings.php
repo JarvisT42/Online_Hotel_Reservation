@@ -6,7 +6,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-include 'connect.php';
+include '../connect.php';
 
 // // Handle form submissions
 // if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['cancel'])) {
-        include 'connect.php'; // include your DB connection
+        include '../connect.php'; // include your DB connection
 
         $booking_id = $_POST['booking_id'];
 

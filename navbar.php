@@ -18,15 +18,16 @@
                       <a class="nav-link" href="#features">Services</a>
                   </li>
                   <!-- <li class="nav-item">
-                      <a class="nav-link" href="#">Testimonials</a>
-                  </li> -->
-                  <li class="nav-item">
                       <a class="nav-link" href="#">About</a>
-                  </li>
+                  </li> -->
                   <li class="nav-item">
                       <a class="nav-link" href="#contact">Contact</a>
                   </li>
+                  <li class="nav-item">
+                      <a class="btn btn-primary ms-lg-3 mt-2 mt-lg-0" href="login.php">Login</a>
+                  </li>
               </ul>
+
           </div>
       </div>
   </nav>

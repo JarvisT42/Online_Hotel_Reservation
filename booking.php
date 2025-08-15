@@ -3,6 +3,36 @@ include 'connect.php';
 
 // Process form submission
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $secretKey = "6LfApqArAAAAAEOmUTic4ZG3fLRVUHvdnz4hI55E"; // from Google reCAPTCHA
+    $responseKey = $_POST['g-recaptcha-response'];
+    $userIP = $_SERVER['REMOTE_ADDR'];
+
+    // Send request to Google
+    $url = "https://www.google.com/recaptcha/api/siteverify";
+    $data = [
+        'secret' => $secretKey,
+        'response' => $responseKey,
+        'remoteip' => $userIP
+    ];
+
+    $options = [
+        'http' => [
+            'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+            'method'  => 'POST',
+            'content' => http_build_query($data)
+        ]
+    ];
+
+    $context  = stream_context_create($options);
+    $result = file_get_contents($url, false, $context);
+    $response = json_decode($result);
+}
+
+
+
+
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name = $conn->real_escape_string($_POST['first_name']);
@@ -38,6 +68,13 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
         $booking = $result->fetch_assoc();
     }
 }
+
+
+
+
+
+
+
 ?>
 
 <!DOCTYPE html>
@@ -55,6 +92,11 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
     <link rel="stylesheet" href="css/style.css">
+
+
+
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
 </head>
 
 <body>
@@ -99,6 +141,7 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                             <i class="fas fa-ban me-2"></i> No rooms available
                         </div>
                     </div>
+
                     <div id="selectedDates" class="selected-dates" style="display:none;">
                         <div class="date-info">
                             <span class="date-label">Check-In:</span>
@@ -106,40 +149,45 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                         </div>
 
                         <!-- ADDED TIME SELECTION -->
-
                         <div class="time-info">
-
                             <span class="time-label">Check-in Time:</span>
-
-
                             <div class="time-options">
                                 <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" name="checkinTime" id="morningTime" value="morning" checked>
-                                    <label class="form-check-label" for="morningTime">
-                                        Morning (8AM-12PM)
-                                    </label>
+                                    <label class="form-check-label" for="morningTime">Morning (8AM-12PM)</label>
                                 </div>
                                 <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" name="checkinTime" id="afternoonTime" value="afternoon">
-                                    <label class="form-check-label" for="afternoonTime">
-                                        Afternoon (1PM-5PM)
-                                    </label>
+                                    <label class="form-check-label" for="afternoonTime">Afternoon (1PM-5PM)</label>
                                 </div>
                             </div>
-
                         </div>
 
+                        <!-- FORM WITH reCAPTCHA -->
+                        <form id="bookingFormStep1" action="" method="POST">
+                            <!-- reCAPTCHA widget -->
+                            <!-- reCAPTCHA widget -->
+                            <div id="captchaContainer">
+                                <div class="g-recaptcha" data-sitekey="6LfApqArAAAAAF9ZV0d4kqJnp7ONwWqPYqL6RH_f"></div>
+                            </div>
 
-                        <button id="nextStep1" class="btn btn-primary mt-3">Continue to Guest Information</button>
+                            <br>
+                            <button type="submit" id="nextStep1" class="btn btn-primary mt-3">
+                                Continue to Guest Information
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
+
+
+
 
             <!-- Step 2: Guest Information -->
             <div id="step2" class="booking-step completed-step">
                 <div class="booking-section">
                     <h3 class="section-title">Guest Information</h3>
-                    <form id="bookingForm">
+                    <form id="bookingFormStep2">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="firstName" class="form-label">First Name</label>
@@ -315,7 +363,17 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+
+            if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+                const captcha = document.getElementById('captchaContainer');
+                if (captcha) captcha.style.display = 'none';
+            }
+
+
+
             <?php if (!$is_success): ?>
+
+
                 // Initialize calendar only if not in success state
                 let calendar;
                 const available = 1;
@@ -380,21 +438,34 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                 });
 
                 // Step navigation
-                document.getElementById('nextStep1').addEventListener('click', function() {
+                document.getElementById('nextStep1').addEventListener('click', function(e) {
+                    e.preventDefault();
+
                     if (!window.bookingData) {
                         alert('Please select your dates first');
                         return;
                     }
 
+                    // Only check reCAPTCHA if not localhost
+                    if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+                        var captchaResponse = grecaptcha.getResponse();
+                        if (captchaResponse.length === 0) {
+                            alert("Please verify that you are not a robot.");
+                            return;
+                        }
+                    }
+
+                    // Passed checks → go to step 2
                     document.getElementById('step1').classList.add('completed-step');
                     document.getElementById('step2').classList.remove('completed-step');
                     document.querySelector('.step:nth-child(1)').classList.remove('active');
                     document.querySelector('.step:nth-child(2)').classList.add('active');
                     document.querySelector('.step:nth-child(1) .step-number').classList.add('completed');
 
-                    // Initialize time display
                     updateTimeDisplay();
                 });
+
+
 
                 document.getElementById('backToStep1').addEventListener('click', function() {
                     document.getElementById('step2').classList.add('completed-step');
@@ -403,7 +474,7 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                     document.querySelector('.step:nth-child(1)').classList.add('active');
                 });
 
-                document.getElementById('bookingForm').addEventListener('submit', function(e) {
+                document.getElementById('bookingFormStep2').addEventListener('submit', function(e) {
                     e.preventDefault();
                     const firstName = document.getElementById('firstName').value;
                     const lastName = document.getElementById('lastName').value;

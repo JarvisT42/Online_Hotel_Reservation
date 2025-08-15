@@ -5,7 +5,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-include 'connect.php';
+include '../connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['pay'])) {
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="room-content">
             <div class="card shadow-sm p-4">
                 <?php
-                include 'connect.php';
+                include '../connect.php';
                 ?>
 
                 <table id="myTable" class="table table-bordered">
@@ -57,8 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <th>Guest Name</th>
 
                             <th>Billing Month</th>
-                            <th>Description</th>
+                            <th>Additional Charges</th>
                             <th>Amount</th>
+                            <th>Total Amount</th>
 
                             <th>Created At</th>
                             <th>Action</th>
@@ -76,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     t.bill_month,
     t.description,
     t.amount,
+        t.total_amount,
     t.created_at
 FROM transactions t
 LEFT JOIN guests g ON g.guest_id = t.guest_id
@@ -93,6 +95,8 @@ ORDER BY t.created_at DESC";
                             echo "<td>" . htmlspecialchars($row['bill_month'] ?? '—') . "</td>";
                             echo "<td>" . htmlspecialchars($row['description']) . "</td>";
                             echo "<td>₱" . number_format($row['amount'], 2) . "</td>";
+                            echo "<td>₱" . number_format($row['total_amount'], 2) . "</td>";
+
                             echo "<td>" . htmlspecialchars($row['created_at'] ?? '—') . "</td>";
 
                             echo '<td><button 

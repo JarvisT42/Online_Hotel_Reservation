@@ -56,7 +56,7 @@
 				<p class="text-muted mx-auto" style="max-width: 700px;">Experience unparalleled comfort and service at our premium apartelle</p>
 			</div>
 			<div class="row g-4">
-				<div class="col-md-6 col-lg-3">
+				<div class="col-md-6 col-lg-4">
 					<div class="feature-card h-100">
 						<div class="feature-icon">
 							<i class="fas fa-concierge-bell"></i>
@@ -65,7 +65,7 @@
 						<p>Our dedicated staff is available around the clock to assist with all your needs.</p>
 					</div>
 				</div>
-				<div class="col-md-6 col-lg-3">
+				<div class="col-md-6 col-lg-4">
 					<div class="feature-card h-100">
 						<div class="feature-icon">
 							<i class="fas fa-wifi"></i>
@@ -74,7 +74,7 @@
 						<p>Stay connected with high-speed internet available throughout the property.</p>
 					</div>
 				</div>
-				<div class="col-md-6 col-lg-3">
+				<div class="col-md-6 col-lg-4">
 					<div class="feature-card h-100">
 						<div class="feature-icon">
 							<i class="fas fa-parking"></i>
@@ -83,7 +83,7 @@
 						<p>Secure parking available for all guests at no additional charge.</p>
 					</div>
 				</div>
-				<div class="col-md-6 col-lg-3">
+				<!-- <div class="col-md-6 col-lg-3">
 					<div class="feature-card h-100">
 						<div class="feature-icon">
 							<i class="fas fa-utensils"></i>
@@ -91,7 +91,7 @@
 						<h3>Breakfast Included</h3>
 						<p>Start your day with our complimentary breakfast buffet.</p>
 					</div>
-				</div>
+				</div> -->
 			</div>
 		</div>
 	</section>
@@ -119,14 +119,14 @@
 			<div class="row g-4">
 				<!-- Repeatable gallery-item -->
 				<div class="row g-4">
-					<div class="col-md-6 col-lg-4 gallery-item" data-category="rooms">
+					<!-- <div class="col-md-6 col-lg-4 gallery-item" data-category="rooms">
 						<img src="images/487240206_2215694595514353_2829456240816778387_n.jpg" alt="Standard Room" class="gallery-img">
 						<div class="gallery-overlay">
 							<h3 class="h4 mb-2">Standard Room</h3>
 							<p class="mb-1">Comfortable accommodation with all essential amenities</p>
 							<span class="gallery-category badge">Rooms</span>
 						</div>
-					</div>
+					</div> -->
 					<div class="col-md-6 col-lg-4 gallery-item" data-category="facilities">
 						<img src="images/m.jpg" alt="Swimming Pool" class="gallery-img">
 						<div class="gallery-overlay">
@@ -189,7 +189,6 @@
 					</div>
 				</div>
 
-				<!-- Add other gallery items here following the same structure -->
 			</div>
 		</div>
 
@@ -330,22 +329,22 @@
 				<h2 class="display-5 mb-3">Contact Us</h2>
 				<p class="text-muted mx-auto" style="max-width: 700px;">Reach out to us for reservations, inquiries, or special requests</p>
 			</div>
-			<div class="row g-4">
+			<div class="row g-4 justify-content-center">
 				<div class="col-lg-6">
 					<div class="contact-info p-4 p-md-5 h-100">
 						<h2 class="h1 mb-4 position-relative pb-3">Get In Touch</h2>
 						<div class="contact-details mb-4">
 							<div class="contact-item d-flex mb-4">
 								<i class="fas fa-map-marker-alt me-3 mt-1 fs-4"></i>
-								<div>123 Luxury Avenue, Central Business District, Metro City</div>
+								<div>Purok 3, Barangay Ligaya, General Santos City, Philippines</div>
 							</div>
 							<div class="contact-item d-flex mb-4">
 								<i class="fas fa-phone me-3 mt-1 fs-4"></i>
-								<div>+1 (555) 123-4567</div>
+								<div>0917 700 8092</div>
 							</div>
 							<div class="contact-item d-flex mb-4">
 								<i class="fas fa-envelope me-3 mt-1 fs-4"></i>
-								<div>info@shiojiapartelle.com</div>
+								<div>shiojiapartelle@gmail.com</div>
 							</div>
 							<div class="contact-item d-flex">
 								<i class="fas fa-clock me-3 mt-1 fs-4"></i>
@@ -354,46 +353,18 @@
 						</div>
 						<div class="social-links d-flex gap-3">
 							<a href="https://www.facebook.com/shiojiapartelle"><i class="fab fa-facebook-f"></i></a>
-							<!-- <a href="#"><i class="fab fa-twitter"></i></a>
-							<a href="#"><i class="fab fa-instagram"></i></a>
-							<a href="#"><i class="fab fa-linkedin-in"></i></a> -->
+							<!-- You can add other social icons here -->
 						</div>
-					</div>
-				</div>
-				<div class="col-lg-6">
-					<div class="contact-form p-4 p-md-5 h-100">
-						<h2 class="h1 mb-4">Send a Message</h2>
-						<form id="contactForm">
-							<div class="mb-3">
-								<label for="name" class="form-label">Full Name</label>
-								<input type="text" class="form-control form-control-lg" id="name" required>
-							</div>
-							<div class="mb-3">
-								<label for="email" class="form-label">Email Address</label>
-								<input type="email" class="form-control form-control-lg" id="email" required>
-							</div>
-							<div class="mb-3">
-								<label for="phone" class="form-label">Phone Number</label>
-								<input type="tel" class="form-control form-control-lg" id="phone">
-							</div>
-							<div class="mb-3">
-								<label for="subject" class="form-label">Subject</label>
-								<input type="text" class="form-control form-control-lg" id="subject" required>
-							</div>
-							<div class="mb-4">
-								<label for="message" class="form-label">Message</label>
-								<textarea class="form-control form-control-lg" id="message" rows="5" required></textarea>
-							</div>
-							<button type="submit" class="book-btn btn btn-lg w-100 py-3">Send Message</button>
-						</form>
 					</div>
 				</div>
 			</div>
 			<div class="map mt-5">
-				<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3931.3873274916336!2d125.2259257!3d6.1603803!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x32f776085db4bd15%3A0xbfe6e40fde05aaad!2sShioji%20Apartelle!5e0!3m2!1sen!2sph!4v1717320000000!5m2!1sen!2sph" allowfullscreen="" loading="lazy" title="Shioji Apartelle Location" class="w-100 h-100"></iframe>
+				<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3931.3873274916336!2d125.2259257!3d6.1603803!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x32f776085db4bd15%3A0xbfe6e40fde05aaad!2sShioji%20Apartelle!5e0!3m2!1sen!2sph!4v1717320000000!5m2!1sen!2sph"
+					allowfullscreen="" loading="lazy" title="Shioji Apartelle Location" class="w-100 h-100"></iframe>
 			</div>
 		</div>
 	</section>
+
 
 	<!-- Footer -->
 	<?php include 'footer.php'; ?>

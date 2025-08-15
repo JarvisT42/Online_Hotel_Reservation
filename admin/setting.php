@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'connect.php'; // your DB connection
+include '../connect.php'; // your DB connection
 
 if (!isset($_SESSION['admin_logged_in'])) {
     // Not logged in, redirect to login page
