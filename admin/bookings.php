@@ -129,7 +129,9 @@ $roomQuery = "
     SELECT rooms.room_id, rooms.status, room_types.type
     FROM rooms
     LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
+    WHERE rooms.archive = 'no'
 ";
+
 $roomResult = $conn->query($roomQuery);
 
 

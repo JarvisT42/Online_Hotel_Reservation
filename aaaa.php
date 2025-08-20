@@ -1,23 +1,35 @@
-<!DOCTYPE html>
-<html>
+<?php
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
-<head>
-	<title>reCAPTCHA Example</title>
-	<!-- reCAPTCHA API -->
-	<script src="https://www.google.com/recaptcha/api.js" async defer></script>
-</head>
+require 'assets/PHPMailer-master/src/Exception.php';
+require 'assets/PHPMailer-master/src/PHPMailer.php';
+require 'assets/PHPMailer-master/src/SMTP.php';
 
-<body>
-	<form action="verify.php" method="POST">
-		<label for="name">Name:</label>
-		<input type="text" name="name" required><br><br>
+$mail = new PHPMailer(true);
 
-		<!-- reCAPTCHA widget -->
-		<div class="g-recaptcha" data-sitekey="6LfApqArAAAAAF9ZV0d4kqJnp7ONwWqPYqL6RH_f"></div>
+try {
+    //Server settings
+    $mail->isSMTP();
+    $mail->Host       = 'smtp.hostinger.com';
+    $mail->SMTPAuth   = true;
+    $mail->Username   = 'support@shiojiapartelle.site';  // ✅ no line break
+    $mail->Password   = 'Support@30214087695';           // your mailbox password
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;     // ✅ SSL
+    $mail->Port       = 465;                             // ✅ use 465 for SSL
 
-		<br>
-		<button type="submit">Submit</button>
-	</form>
-</body>
+    //Recipients
+    $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+    $mail->addAddress('kentjoshuazamoradaborbor@gmail.com', 'Recipient Name');
 
-</html>
+    //Content
+    $mail->isHTML(true);
+    $mail->Subject = 'Test Email from PHPMailer';
+    $mail->Body    = '<h3>Hello!</h3><p>This is a test email sent using <b>PHPMailer</b>.</p>';
+    $mail->AltBody = 'Hello! This is a test email sent using PHPMailer.';
+
+    $mail->send();
+    echo 'Message has been sent successfully!';
+} catch (Exception $e) {
+    echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+}

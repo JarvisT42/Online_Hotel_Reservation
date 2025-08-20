@@ -11,7 +11,6 @@ if (!isset($_SESSION['admin_logged_in'])) {
 <?php
 include '../connect.php';
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_room_price'])) {
-    include '../connect.php'; // DB connection
 
     $room_type = trim($_POST['room_type']);
     $room_price = floatval($_POST['room_price']);
@@ -22,20 +21,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['update_room_price']))
         exit;
     }
 
-    // Insert new room type and price
-    $insertStmt = $conn->prepare("INSERT INTO room_types (type, price) VALUES (?, ?)");
-    $insertStmt->bind_param("sd", $room_type, $room_price);
+    // Update room type price instead of insert
+    $updateStmt = $conn->prepare("UPDATE room_types SET price = ? WHERE type = ?");
+    $updateStmt->bind_param("ds", $room_price, $room_type);
 
-    if ($insertStmt->execute()) {
-        $_SESSION['success_message'] = "New room type added successfully.";
+    if ($updateStmt->execute()) {
+        if ($updateStmt->affected_rows > 0) {
+            $_SESSION['success_message'] = "Room type price updated successfully.";
+        } else {
+            $_SESSION['error_message'] = "No room type found with that name.";
+        }
     } else {
-        $_SESSION['error_message'] = "Failed to add room type: " . $conn->error;
+        $_SESSION['error_message'] = "Failed to update room type: " . $conn->error;
     }
 
-    $insertStmt->close();
+    $updateStmt->close();
     header("Location: " . $_SERVER['HTTP_REFERER']);
     exit;
 }
+
 
 
 
@@ -157,8 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
                             <input type="text" name="room_type" id="room_type" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label for="room_price" class="form-label">Room Price</label>
-                            <input type="text" name="room_price" id="room_price" class="form-control" required>
+                            <label for="room_price" class="form-label">Room Price (Daily)</label>
+                            <input type="number" name="room_price" id="room_price" class="form-control" required>
                         </div>
 
                     </div>
@@ -256,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_room_type'])) {
                         </div>
 
                         <div class="mb-3">
-                            <label for="editRoomPrice" class="form-label">Room Price</label>
+                            <label for="editRoomPrice" class="form-label">Room Price (Daily)</label>
                             <input type="number" name="room_price" id="editRoomPrice" class="form-control" required>
                         </div>
                     </div>

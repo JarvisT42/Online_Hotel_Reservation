@@ -418,21 +418,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 display: none;
             }
         }
+
+
+
+
+        .login-navbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .brand-logo {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .brand-logo i {
+            margin-right: 10px;
+            color: var(--secondary);
+        }
+
+        .nav-button {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-button i {
+            margin-right: 8px;
+        }
+
+        .nav-button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 
 <body>
+    <nav class="login-navbar">
+        <a href="index.php" class="brand-logo">
+            <i class="fas fa-hotel"></i>
+            SHIOJI APARTELLE
+        </a>
+        <a href="index.php" class="nav-button">
+            <i class="fas fa-external-link-alt"></i> Home
+        </a>
+    </nav>
+
     <!-- Decorative background elements -->
     <div class="decoration circle-1"></div>
     <div class="decoration circle-2"></div>
     <div class="decoration triangle"></div>
     <div class="decoration square"></div>
 
+
+
+
+
     <div class="login-container">
         <div class="login-header">
             <div class="logo">
                 <div class="logo-inner">
-                    <i class="fas fa-hotel"></i>
+                    <!-- SVG Logo -->
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        width="50" height="50"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="feather feather-home">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
                 </div>
             </div>
             <h2>SHIOJI APARTELLE</h2>
@@ -468,16 +548,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="checkbox" id="remember" name="remember">
                     <label for="remember">Remember me</label>
                 </div>
-                <a href="#" class="forgot-password">Forgot Password?</a>
+                <!-- <a href="#" class="forgot-password">Forgot Password?</a> -->
             </div>
         </form>
 
 
 
 
-        <div class="register-link">
+        <!-- <div class="register-link">
             Don't have an account? <a href="#">Request Access</a>
-        </div>
+        </div> -->
     </div>
 
     <script>

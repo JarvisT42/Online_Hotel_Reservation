@@ -118,21 +118,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php
             // Fetch guest + room data
             $sql = "
-            SELECT 
-                guests.guest_id, 
-                guests.first_name, 
-                guests.last_name, 
-                room_types.type AS room_type, 
-                room_types.price,
-                guests.checkin_date
-            FROM guests
-            LEFT JOIN rooms ON guests.room_id = rooms.room_id
-            LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
-        ";
+    SELECT 
+        guests.guest_id, 
+        guests.first_name, 
+        guests.last_name, 
+        room_types.type AS room_type, 
+        room_types.price,
+        guests.checkin_date
+    FROM guests
+    LEFT JOIN rooms ON guests.room_id = rooms.room_id
+    LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
+    WHERE guests.status = 'checked_in'
+";
             $result = $conn->query($sql);
 
             $guestData = [];
             $optionsHtml = [];
+
 
             function getUnpaidMonthsgg($checkinDate, $guestId, $conn)
             {
@@ -247,9 +249,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         const price = parseFloat(guestData[selectedId].price.replace(/,/g, '')) || 0;
 
                         // Display in room info
-                        roomInfo.value = `${guestData[selectedId].room_type} (₱${guestData[selectedId].price})`;
+                        roomInfo.value = `${guestData[selectedId].room_type} (₱${guestData[selectedId].price}/day)`;
 
-                        // Store numeric price for calculation
+                        // Store numeric daily price
                         roomPriceInput.value = price;
 
                         // Populate unpaid months
@@ -269,15 +271,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
 
                 document.getElementById('additionalAmount').addEventListener('input', updateTotal);
+                document.getElementById('billMonthSelect').addEventListener('change', updateTotal);
 
                 function updateTotal() {
                     const roomPrice = parseFloat(document.getElementById('roomPrice').value) || 0;
                     const additional = parseFloat(document.getElementById('additionalAmount').value) || 0;
-                    const total = roomPrice + additional;
+                    const monthValue = document.getElementById('billMonthSelect').value;
 
-                    document.getElementById('totalAmount').value = `₱${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                    let total = 0;
+
+                    if (monthValue) {
+                        const [year, month] = monthValue.split('-').map(Number);
+                        const daysInMonth = new Date(year, month, 0).getDate(); // get days in that month
+                        total = (roomPrice * daysInMonth) + additional;
+                    } else {
+                        total = additional; // if no month selected, just show additional
+                    }
+
+                    document.getElementById('totalAmount').value =
+                        `₱${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
                 }
             </script>
+
 
 
             <!-- JS to auto-fill room info -->
@@ -353,17 +368,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <tbody>
                         <?php
                         $sql = "SELECT 
-                    g.guest_id,
-                    g.first_name,
-                    g.last_name,
-                    g.checkin_date,
-                    r.room_id,
-                    rt.type AS room_type
-                FROM guests g
-                LEFT JOIN rooms r ON g.room_id = r.room_id
-                LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
-                WHERE g.checkin_date IS NOT NULL
-                ORDER BY g.checkin_date DESC";
+            g.guest_id,
+            g.first_name,
+            g.last_name,
+            g.checkin_date,
+            r.room_id,
+            rt.type AS room_type
+        FROM guests g
+        LEFT JOIN rooms r ON g.room_id = r.room_id
+        LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
+        WHERE g.status = 'checked_in' 
+        ORDER BY g.checkin_date DESC";
 
                         $result = $conn->query($sql);
 

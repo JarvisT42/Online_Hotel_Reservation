@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 04, 2025 at 06:37 AM
+-- Generation Time: Aug 21, 2025 at 12:17 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -90,8 +90,20 @@ CREATE TABLE `rooms` (
   `room_id` int(11) NOT NULL,
   `guest_id` int(11) DEFAULT NULL,
   `room_type_id` int(10) NOT NULL,
-  `status` enum('available','occupied') NOT NULL
+  `status` enum('available','occupied') NOT NULL,
+  `archive` enum('yes','no') NOT NULL DEFAULT 'no'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `rooms_archive`
+--
+
+CREATE TABLE `rooms_archive` (
+  `archive_id` int(11) NOT NULL,
+  `room` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -101,7 +113,7 @@ CREATE TABLE `rooms` (
 
 CREATE TABLE `room_price` (
   `room_price_id` int(11) NOT NULL,
-  `amount` double(10,2) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -115,8 +127,18 @@ CREATE TABLE `room_types` (
   `room_type_id` int(11) NOT NULL,
   `type` varchar(200) NOT NULL,
   `price` double(10,2) NOT NULL DEFAULT 0.00,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `archive` enum('yes','no') NOT NULL DEFAULT 'no'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `room_types`
+--
+
+INSERT INTO `room_types` (`room_type_id`, `type`, `price`, `created_at`, `archive`) VALUES
+(16, 'single', 150.00, '2025-08-04 06:13:01', 'no'),
+(17, 'double', 6000.00, '2025-08-04 06:13:14', 'no'),
+(19, 'deluxe', 10000.00, '2025-08-16 01:52:40', 'no');
 
 -- --------------------------------------------------------
 
@@ -132,6 +154,7 @@ CREATE TABLE `transactions` (
   `bill_month` varchar(7) NOT NULL,
   `description` varchar(200) NOT NULL,
   `amount` double(10,2) NOT NULL,
+  `total_amount` decimal(10,2) NOT NULL,
   `checkin_time` time NOT NULL,
   `checkout` date NOT NULL,
   `checkout_time` time NOT NULL,
@@ -170,6 +193,12 @@ ALTER TABLE `rooms`
   ADD KEY `guest_id` (`guest_id`);
 
 --
+-- Indexes for table `rooms_archive`
+--
+ALTER TABLE `rooms_archive`
+  ADD PRIMARY KEY (`archive_id`);
+
+--
 -- Indexes for table `room_price`
 --
 ALTER TABLE `room_price`
@@ -202,13 +231,19 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `guests`
 --
 ALTER TABLE `guests`
-  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+
+--
+-- AUTO_INCREMENT for table `rooms_archive`
+--
+ALTER TABLE `rooms_archive`
+  MODIFY `archive_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `room_price`
@@ -220,13 +255,13 @@ ALTER TABLE `room_price`
 -- AUTO_INCREMENT for table `room_types`
 --
 ALTER TABLE `room_types`
-  MODIFY `room_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `room_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
 
 --
 -- Constraints for dumped tables

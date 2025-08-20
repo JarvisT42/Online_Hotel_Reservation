@@ -49,80 +49,122 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_room'])) {
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['occupied'])) {
+
+
+
     $room_id = $_POST['room_id'];
+    $first_name = $_POST['first_name'];
+    $last_name = $_POST['last_name'];
+    $email = $_POST['email'];
+    $phone = $_POST['phone'];
 
-    // 1. Check current status
-    $checkSql = "SELECT status FROM rooms WHERE room_id = ?";
-    $stmt = $conn->prepare($checkSql);
+    // Insert guest
+    $datenow = date("Y-m-d H:i:s"); // current date/time
+    $status = "checked_in"; // or whatever status you want
 
-    if ($stmt) {
-        $stmt->bind_param("s", $room_id);
-        $stmt->execute();
-        $stmt->bind_result($currentStatus);
-        $stmt->fetch();
-        $stmt->close();
+    $stmt = $conn->prepare("INSERT INTO guests (room_id, first_name, last_name, email, phone, checkin_date, status) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param(
+        "issssss",
+        $room_id,
+        $first_name,
+        $last_name,
+        $email,
+        $phone,
+        $datenow,
+        $status
+    );
+    $stmt->execute();
+    $guest_id = $stmt->insert_id;
+    $stmt->close();
 
-        // 2. Determine the new status
-        $newStatus = ($currentStatus === 'occupied') ? NULL : 'occupied';
+    // Update room as occupied
+    $stmt = $conn->prepare("UPDATE rooms SET status='occupied', guest_id=? WHERE room_id=?");
+    $stmt->bind_param("ii", $guest_id, $room_id);
+    $stmt->execute();
+    $stmt->close();
 
-        // 3. Update the status
-        $updateSql = "UPDATE rooms SET status = ? WHERE room_id = ?";
-        $stmt = $conn->prepare($updateSql);
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
 
-        if ($stmt) {
-            $stmt->bind_param("ss", $newStatus, $room_id);
 
-            if ($stmt->execute()) {
-                header("Location: " . $_SERVER['PHP_SELF']);
-                exit();
-            } else {
-                echo "Error executing update: " . $stmt->error;
-            }
-        } else {
-            echo "Error preparing update statement: " . $conn->error;
-        }
-    } else {
-        echo "Error preparing select statement: " . $conn->error;
-    }
+
+
+
+    // $room_id = $_POST['room_id'];
+
+    // // 1. Check current status
+    // $checkSql = "SELECT status FROM rooms WHERE room_id = ?";
+    // $stmt = $conn->prepare($checkSql);
+
+    // if ($stmt) {
+    //     $stmt->bind_param("s", $room_id);
+    //     $stmt->execute();
+    //     $stmt->bind_result($currentStatus);
+    //     $stmt->fetch();
+    //     $stmt->close();
+
+    //     // 2. Determine the new status
+    //     $newStatus = ($currentStatus === 'occupied') ? NULL : 'occupied';
+
+    //     // 3. Update the status
+    //     $updateSql = "UPDATE rooms SET status = ? WHERE room_id = ?";
+    //     $stmt = $conn->prepare($updateSql);
+
+    //     if ($stmt) {
+    //         $stmt->bind_param("ss", $newStatus, $room_id);
+
+    //         if ($stmt->execute()) {
+    //             header("Location: " . $_SERVER['PHP_SELF']);
+    //             exit();
+    //         } else {
+    //             echo "Error executing update: " . $stmt->error;
+    //         }
+    //     } else {
+    //         echo "Error preparing update statement: " . $conn->error;
+    //     }
+    // } else {
+    //     echo "Error preparing select statement: " . $conn->error;
+    // }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['available'])) {
-    $room_id = $_POST['room_id'];
+// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['available'])) {
+//     $room_id = $_POST['room_id'];
 
-    // 1. Check current status
-    $checkSql = "SELECT status FROM rooms WHERE room_id = ?";
-    $stmt = $conn->prepare($checkSql);
+//     // 1. Check current status
+//     $checkSql = "SELECT status FROM rooms WHERE room_id = ?";
+//     $stmt = $conn->prepare($checkSql);
 
-    if ($stmt) {
-        $stmt->bind_param("s", $room_id);
-        $stmt->execute();
-        $stmt->bind_result($currentStatus);
-        $stmt->fetch();
-        $stmt->close();
+//     if ($stmt) {
+//         $stmt->bind_param("s", $room_id);
+//         $stmt->execute();
+//         $stmt->bind_result($currentStatus);
+//         $stmt->fetch();
+//         $stmt->close();
 
-        // 2. Determine the new status
-        $newStatus = ($currentStatus === 'available') ? NULL : 'vailable';
+//         // 2. Determine the new status
+//         $newStatus = ($currentStatus === 'available') ? NULL : 'vailable';
 
-        // 3. Update the status
-        $updateSql = "UPDATE rooms SET status = ? WHERE room_id = ?";
-        $stmt = $conn->prepare($updateSql);
+//         // 3. Update the status
+//         $updateSql = "UPDATE rooms SET status = ? WHERE room_id = ?";
+//         $stmt = $conn->prepare($updateSql);
 
-        if ($stmt) {
-            $stmt->bind_param("ss", $newStatus, $room_id);
+//         if ($stmt) {
+//             $stmt->bind_param("ss", $newStatus, $room_id);
 
-            if ($stmt->execute()) {
-                header("Location: " . $_SERVER['PHP_SELF']);
-                exit();
-            } else {
-                echo "Error executing update: " . $stmt->error;
-            }
-        } else {
-            echo "Error preparing update statement: " . $conn->error;
-        }
-    } else {
-        echo "Error preparing select statement: " . $conn->error;
-    }
-}
+//             if ($stmt->execute()) {
+//                 header("Location: " . $_SERVER['PHP_SELF']);
+//                 exit();
+//             } else {
+//                 echo "Error executing update: " . $stmt->error;
+//             }
+//         } else {
+//             echo "Error preparing update statement: " . $conn->error;
+//         }
+//     } else {
+//         echo "Error preparing select statement: " . $conn->error;
+//     }
+// }
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
@@ -380,26 +422,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
 
                             if ($row['status'] === 'occupied') {
                                 // Show only Mark as Available button
-                                echo "<form action='' method='POST' style='display:inline-block;' onsubmit=\"return confirm('Are you sure you want to Mark as Available?');\">
-                <input type='hidden' name='room_id' value='" . htmlspecialchars($row['room_id']) . "'>
-                <button type='submit' name='available' class='btn btn-sm btn-outline-danger btn-action'>Mark as Available</button>
-              </form>";
-                            } else {
-                                // Show Mark as Occupied button
-                                echo '<form action="" method="POST" style="display:inline-block;" onsubmit="return confirm(\'Change room status?\');">
-    <input type="hidden" name="room_id" value="' . htmlspecialchars($row['room_id']) . '">
-    <button type="submit" name="occupied" class="btn btn-sm btn-outline-success btn-action">
-        Mark as Occupied
-    </button>
-</form>';
 
+                            } else {
+                                // Show Mark as Occupied button (opens modal)
+                                echo '<button type="button" 
+                class="btn btn-sm btn-outline-success btn-action occupy-btn" 
+                data-bs-toggle="modal" 
+                data-bs-target="#occupyModal"
+                data-room-id="' . htmlspecialchars($row['room_id']) . '">
+                Mark as Occupied
+          </button>';
 
                                 // Show Archive button
                                 echo '<form action="" method="POST" style="display:inline-block; margin-left:5px;" 
-        onsubmit="return confirm(\'Are you sure you want to Archive this room?\');">
-        <input type="hidden" name="room_id" value="' . htmlspecialchars($row['room_id']) . '">
-        <button type="submit" name="archive" class="btn btn-sm btn-outline-warning btn-action">Archive</button>
-      </form>';
+            onsubmit="return confirm(\'Are you sure you want to Archive this room?\');">
+            <input type="hidden" name="room_id" value="' . htmlspecialchars($row['room_id']) . '">
+            <button type="submit" name="archive" class="btn btn-sm btn-outline-warning btn-action">Archive</button>
+        </form>';
                             }
 
                             echo "</td>";
@@ -413,6 +452,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
 
                     save button
                 </table>
+
+                <!-- Occupy Modal -->
+                <div class="modal fade" id="occupyModal" tabindex="-1" aria-labelledby="occupyModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <form action="" method="POST" class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="occupyModalLabel">Assign Guest to Room</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" name="room_id" id="modal_room_id">
+
+                                <div class="mb-3">
+                                    <label class="form-label">First Name</label>
+                                    <input type="text" name="first_name" class="form-control" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Last Name</label>
+                                    <input type="text" name="last_name" class="form-control" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" name="email" class="form-control" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="number" name="phone" class="form-control" required>
+                                </div>
+
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" name="occupied" class="btn btn-success">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const occupyButtons = document.querySelectorAll('.occupy-btn');
+                        const roomIdInput = document.getElementById('modal_room_id');
+
+                        occupyButtons.forEach(button => {
+                            button.addEventListener('click', function() {
+                                const roomId = this.getAttribute('data-room-id');
+                                roomIdInput.value = roomId;
+                            });
+                        });
+                    });
+                </script>
+
+
+
             </div>
         </div>
 

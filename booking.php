@@ -1,5 +1,14 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 include 'connect.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'assets/PHPMailer-master/src/Exception.php';
+require 'assets/PHPMailer-master/src/PHPMailer.php';
+require 'assets/PHPMailer-master/src/SMTP.php';
 
 // Process form submission
 
@@ -41,14 +50,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone = $conn->real_escape_string($_POST['phone']);
     $checkin = $conn->real_escape_string($_POST['checkin']);
     $guests = (int)$_POST['guests'];
-    $checkin_time = $conn->real_escape_string($_POST['checkin_time']); // New field
+    $checkin_time = $conn->real_escape_string($_POST['checkin_time']);
     $status = 'pending';
-    // Update SQL query to include checkin_time
-    $stmt = $conn->prepare("INSERT INTO bookings (first_name, last_name, email, phone, booking_date,  no_of_guest, booking_time, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssssiss", $first_name, $last_name, $email, $phone, $checkin,  $guests, $checkin_time, $status);
+
+    $stmt = $conn->prepare("INSERT INTO bookings (first_name, last_name, email, phone, booking_date, no_of_guest, booking_time, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssssiss", $first_name, $last_name, $email, $phone, $checkin, $guests, $checkin_time, $status);
 
     if ($stmt->execute()) {
         $booking_id = $conn->insert_id;
+
+        // Send confirmation email
+        $mail = new PHPMailer(true);
+        try {
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.hostinger.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'support@shiojiapartelle.site';
+            $mail->Password   = 'Support@30214087695';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            $mail->Port       = 465;
+
+            // Recipients
+            $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+            $mail->addAddress($email, $first_name . ' ' . $last_name);
+            $mail->addBCC('kentjoshuazamoradaborbor@gmail.com'); // Admin copy
+
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = 'Booking Confirmation - SHIOJI APARTELLE';
+
+            // Format booking date
+            $formatted_date = date('F j, Y', strtotime($checkin));
+            $formatted_time = $checkin_time === 'morning' ? 'Morning (8AM-12PM)' : 'Afternoon (1PM-5PM)';
+
+            $mail->Body = "
+                <h2>Booking Confirmed!</h2>
+                <p>Thank you for choosing SHIOJI APARTELLE. Your reservation has been successfully booked.</p>
+                
+                <h3>Booking Details:</h3>
+                <p><strong>Booking ID:</strong> SHIOJI-$booking_id</p>
+                <p><strong>Name:</strong> $first_name $last_name</p>
+                <p><strong>Email:</strong> $email</p>
+                <p><strong>Phone:</strong> $phone</p>
+                <p><strong>Appointment Date:</strong> $formatted_date</p>
+                <p><strong>Appointment Time:</strong> $formatted_time</p>
+                <p><strong>Number of Guests:</strong> $guests</p>
+                
+                <p>We look forward to hosting you! If you have any questions, please reply to this email.</p>
+                <p>Best regards,<br>SHIOJI APARTELLE</p>
+            ";
+
+            $mail->send();
+        } catch (Exception $e) {
+            // Log error but don't break the user experience
+            error_log("Mailer Error: " . $mail->ErrorInfo);
+        }
+
         header("Location: booking.php?book_success=1&booking_id=$booking_id");
         exit();
     } else {
@@ -56,6 +114,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $stmt->close();
 }
+
+
+
 
 // Fetch booking details if success
 $booking = [];
@@ -144,13 +205,13 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
 
                     <div id="selectedDates" class="selected-dates" style="display:none;">
                         <div class="date-info">
-                            <span class="date-label">Check-In:</span>
+                            <span class="date-label">Appointment Date:</span>
                             <span id="checkInDate" class="date-value"></span>
                         </div>
 
                         <!-- ADDED TIME SELECTION -->
                         <div class="time-info">
-                            <span class="time-label">Check-in Time:</span>
+                            <span class="time-label">Appointment Time:</span>
                             <div class="time-options">
                                 <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" name="checkinTime" id="morningTime" value="morning" checked>
@@ -225,11 +286,11 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                             <h5 class="mb-3">Booking Summary</h5>
 
                             <div class="summary-item">
-                                <span>Check-In:</span>
+                                <span>Appointment Date:</span>
                                 <span id="summaryCheckIn"></span>
                             </div>
                             <div class="summary-item">
-                                <span>Check-in Time:</span>
+                                <span>Appointment Time:</span>
                                 <span id="summaryCheckInTime">Morning (8AM-12PM)</span>
                             </div>
                             <div class="summary-item">
@@ -276,13 +337,13 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                                     <input type="hidden" name="phone" id="hiddenPhone" />
                                 </div>
                                 <div class="detail-item">
-                                    <span class="detail-label">Check-In:</span>
+                                    <span class="detail-label">Appointment Date:</span>
                                     <span class="detail-value" id="confirmationDates"></span>
                                     <input type="hidden" name="checkin" id="hiddenDates" />
                                 </div>
                                 <!-- ADDED TIME CONFIRMATION -->
                                 <div class="detail-item">
-                                    <span class="detail-label">Check-in Time:</span>
+                                    <span class="detail-label">Appointment Time:</span>
                                     <span class="detail-value" id="confirmationTime"></span>
                                     <input type="hidden" name="checkin_time" id="hiddenTime" />
                                 </div>
@@ -332,12 +393,12 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                             <span class="detail-value"><?= htmlspecialchars($booking['phone']) ?></span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Check-In:</span>
+                            <span class="detail-label">Appointment Date:</span>
                             <span class="detail-value"><?= date('F j, Y', strtotime($booking['booking_date'])) ?></span>
                         </div>
                         <!-- ADDED TIME DISPLAY -->
                         <div class="detail-item">
-                            <span class="detail-label">Check-in Time:</span>
+                            <span class="detail-label">Appointment Time:</span>
                             <span class="detail-value">
                                 <?= $booking['booking_time'] === 'morning' ? 'Morning (8AM-12PM)' : 'Afternoon (1PM-5PM)' ?>
                             </span>
