@@ -1,6 +1,17 @@
 <?php
 session_start();
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require '../assets/PHPMailer-master/src/Exception.php';
+require '../assets/PHPMailer-master/src/PHPMailer.php';
+require '../assets/PHPMailer-master/src/SMTP.php';
+
+$mail = new PHPMailer(true);
+
+
+
 if (!isset($_SESSION['admin_logged_in'])) {
     header("Location: ../login.php");
     exit;
@@ -40,40 +51,36 @@ include '../connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['assign_room'])) {
+        $email = $_POST['email'];
         $booking_id = $_POST['booking_id'];
         $room_id = $_POST['room_id'];
         $checkin_date = date('Y-m-d');
         $status = "checked_in";
 
-
         // Step 1: Transfer data from bookings to guests
         $transferQuery = "
-            INSERT INTO guests (
-                first_name,
-                last_name,
-                email,
-                phone,
-                checkin_date,
-            
-                no_of_guest,
-              
-                status,
-                room_id
-            )
-            SELECT
-                first_name,
-                last_name,
-                email,
-                phone,
-                '$checkin_date',
-            
-                no_of_guest,
-              
-                    '$status',
-                '$room_id'
-            FROM bookings
-            WHERE booking_id = '$booking_id'
-        ";
+        INSERT INTO guests (
+            first_name,
+            last_name,
+            email,
+            phone,
+            checkin_date,
+            no_of_guest,
+            status,
+            room_id
+        )
+        SELECT
+            first_name,
+            last_name,
+            email,
+            phone,
+            '$checkin_date',
+            no_of_guest,
+            '$status',
+            '$room_id'
+        FROM bookings
+        WHERE booking_id = '$booking_id'
+    ";
 
         if ($conn->query($transferQuery) === TRUE) {
             // Get new guest ID
@@ -83,15 +90,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updateRoomQuery = "UPDATE rooms SET guest_id = $guest_id, status = 'occupied' WHERE room_id = '$room_id'";
             $conn->query($updateRoomQuery);
 
-            // ✅ Step 3: Mark booking as completed
+            // Step 3: Mark booking as completed
             $updateBookingQuery = "UPDATE bookings SET status = 'completed' WHERE booking_id = '$booking_id'";
             $conn->query($updateBookingQuery);
 
-            header("Location: " . $_SERVER['PHP_SELF'] . "?success=1");
-        } else {
 
+
+
+            try {
+                // Server settings
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.hostinger.com';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'support@shiojiapartelle.site';
+                $mail->Password   = 'Shioji@98';
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+                $mail->Port       = 465;
+
+                // Recipients
+                $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+                $mail->addAddress($email); // send to guest email
+
+                // Content
+                $mail->isHTML(true);
+                $mail->Subject = 'Your Room Assignment - Shioji Apartelle';
+                $mail->Body    = "
+                <h2>Room Assignment Confirmation</h2>
+                <p>Dear Guest,</p>
+                <p>We are pleased to inform you that your booking has been successfully processed.</p>
+                <p><b>Room ID:</b> {$room_id}</p>
+                <p><b>Check-in Date:</b> {$checkin_date}</p>
+                <p>We look forward to hosting you at Shioji Apartelle.</p>
+                <br>
+                <p>Best regards,<br>Shioji Apartelle Team</p>
+            ";
+
+                $mail->send();
+            } catch (Exception $e) {
+                error_log("Mailer Error: {$mail->ErrorInfo}");
+            }
+
+            // Redirect after success
+            header("Location: " . $_SERVER['PHP_SELF'] . "?success=1");
+            exit();
+        } else {
             $_SESSION['error_message'] = "Error transferring guest data: " . $conn->error;
             header("Location: " . $_SERVER['PHP_SELF'] . "?error=1");
+            exit();
         }
     }
 }
@@ -101,19 +146,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         include '../connect.php'; // include your DB connection
 
         $booking_id = $_POST['booking_id'];
+        $email = $_POST['email'];
 
         // Update the booking status to 'cancelled'
         $stmt = $conn->prepare("UPDATE bookings SET status = 'cancelled' WHERE booking_id = ?");
         $stmt->bind_param("i", $booking_id);
 
         if ($stmt->execute()) {
+            // ✅ Send cancellation email
+         
+
+            try {
+                // Server settings
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.hostinger.com';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'support@shiojiapartelle.site';
+                $mail->Password   = 'Shioji@98';
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+                $mail->Port       = 465;
+
+                // Recipients
+                $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+                $mail->addAddress($email); // send to guest email
+
+                // Content
+                $mail->isHTML(true);
+                $mail->Subject = 'Booking Cancellation - Shioji Apartelle';
+                $mail->Body    = "
+                <h2>Booking Cancellation Notice</h2>
+                <p>Dear Guest,</p>
+                <p>We regret to inform you that your booking with ID <b>SHIOJI-{$booking_id}</b> has been <b>cancelled</b>.</p>
+                
+                <br>
+                <p>We hope to serve you in the future.</p>
+                <br>
+                <p>Best regards,<br>Shioji Apartelle Team</p>
+            ";
+
+                $mail->send();
+            } catch (Exception $e) {
+                error_log("Mailer Error (Cancel): {$mail->ErrorInfo}");
+            }
+
             header("Location: " . $_SERVER['PHP_SELF'] . "?cancelled=1");
+            exit();
         } else {
             $_SESSION['error_message'] = "Error cancelling booking: " . $conn->error;
         }
 
         $stmt->close();
-
         exit;
     }
 }
@@ -227,7 +309,7 @@ $roomResult = $conn->query($roomQuery);
                                 <th>Book Date</th>
                                 <th>No. of Guest</th>
                                 <th>Status</th>
-                                <th>Assigned Room</th>
+
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -251,27 +333,24 @@ $roomResult = $conn->query($roomQuery);
                                                 ?>
                                             </span>
                                         </td>
-                                        <td>
-                                            <?php if (!empty($row['room_id'])): ?>
-                                                <span class="badge bg-primary">Room <?php echo $row['room_id']; ?></span>
-                                            <?php else: ?>
-                                                <span class="text-muted">Not assigned</span>
-                                            <?php endif; ?>
-                                        </td>
+
                                         <td>
                                             <?php if (empty($row['room_id'])): ?>
                                                 <!-- Assign Room Button -->
                                                 <button class="btn btn-primary btn-sm assign-btn"
                                                     data-book-id="<?php echo $row['booking_id']; ?>"
                                                     data-guest-name="<?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?>"
+                                                    data-email="<?php echo htmlspecialchars($row['email']); ?>"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#assignModal">
                                                     Assign Room
                                                 </button>
 
+
                                                 <!-- Cancel Button (optional functionality) -->
                                                 <form method="POST" action="" style="display:inline-block;" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
                                                     <input type="hidden" name="booking_id" value="<?php echo $row['booking_id']; ?>">
+                                                    <input type="hidden" name="email" value="<?php echo $row['email']; ?>">
                                                     <button type="submit" name="cancel" class="btn btn-danger btn-sm">
                                                         Cancel
                                                     </button>
@@ -345,9 +424,11 @@ $roomResult = $conn->query($roomQuery);
 
 
                         <div class="modal-footer">
+                            <input type="hidden" name="email" id="modalEmail">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" name="assign_room" class="btn btn-primary">Assign Room</button>
                         </div>
+
                     </div>
             </form>
         </div>
@@ -373,10 +454,13 @@ $roomResult = $conn->query($roomQuery);
             $('.assign-btn').on('click', function() {
                 const bookId = $(this).data('book-id');
                 const guestName = $(this).data('guest-name');
+                const email = $(this).data('email');
 
                 $('#modalBookId').val(bookId);
                 $('#guestName').val(guestName);
+                $('#modalEmail').val(email);
             });
+
 
             // Handle sidebar toggle
             $('#sidebarToggle').on('click', function() {

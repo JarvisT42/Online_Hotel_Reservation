@@ -4,7 +4,7 @@
 			<div class="col-md-6 col-lg-3">
 				<div class="footer-col">
 					<h3 class="h4 mb-3">SHIOJI APARTELLE</h3>
-					<p class="mb-4">Experience luxury, comfort, and exceptional service at our premium apartelle. Your perfect getaway awaits.</p>
+					<p class="mb-4">A place to stay away from home , away from the city noise with complete amenities.</p>
 					<div class="social-links d-flex gap-3">
 						<a href="https://www.facebook.com/shiojiapartelle" target="_blank" rel="noopener noreferrer">
 							<i class="fab fa-facebook-f"></i>

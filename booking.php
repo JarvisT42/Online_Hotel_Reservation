@@ -67,14 +67,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->Host       = 'smtp.hostinger.com';
             $mail->SMTPAuth   = true;
             $mail->Username   = 'support@shiojiapartelle.site';
-            $mail->Password   = 'Support@30214087695';
+            $mail->Password   = 'Shioji@98';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port       = 465;
+
+
+
 
             // Recipients
             $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
             $mail->addAddress($email, $first_name . ' ' . $last_name);
-            $mail->addBCC('kentjoshuazamoradaborbor@gmail.com'); // Admin copy
+
+
+
 
             // Content
             $mail->isHTML(true);
@@ -183,9 +188,9 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
             </div>
             <div class="step <?= $is_success ? 'completed' : '' ?>">
                 <div class="step-number">3</div>
-                <div class="step-label">Confirmation</div>
+                <div class="step-label">Pending</div>
             </div>
-            <div class="step <?= $is_success ? 'active' : '' ?>">
+            <div class="step <?= $is_success ? 'completed' : '' ?>">
                 <div class="step-number">4</div>
                 <div class="step-label">Success</div>
             </div>
@@ -264,7 +269,7 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="phone" class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" id="phone" required>
+                                <input type="number" class="form-control" id="phone" required>
                             </div>
 
 

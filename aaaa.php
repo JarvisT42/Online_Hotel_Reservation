@@ -14,7 +14,7 @@ try {
     $mail->Host       = 'smtp.hostinger.com';
     $mail->SMTPAuth   = true;
     $mail->Username   = 'support@shiojiapartelle.site';  // ✅ no line break
-    $mail->Password   = 'Support@30214087695';           // your mailbox password
+    $mail->Password   = 'Shioji@98';           // your mailbox password
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;     // ✅ SSL
     $mail->Port       = 465;                             // ✅ use 465 for SSL
 
