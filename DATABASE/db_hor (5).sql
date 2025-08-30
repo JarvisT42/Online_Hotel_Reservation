@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 21, 2025 at 12:17 AM
+-- Generation Time: Aug 30, 2025 at 01:17 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -40,7 +40,8 @@ CREATE TABLE `admin` (
 --
 
 INSERT INTO `admin` (`admin_id`, `name`, `email`, `username`, `password`) VALUES
-(1, '', '', 'asd', '$2y$10$deY3Vagd85poMdQHaZdJXeSAkCeIQXrNQtoPB0gBhtgFcBaSvbrTe');
+(1, 'sdf', 'asd@gmail.com', 'asd', '$2y$10$deY3Vagd85poMdQHaZdJXeSAkCeIQXrNQtoPB0gBhtgFcBaSvbrTe'),
+(2, 'wer', '', 'wer', '$2y$10$ciuxixvtCb10wJtVGPPpd.1WGoOt60dOx4T.9.U/jJrQE1To9oaN.');
 
 -- --------------------------------------------------------
 
@@ -61,6 +62,16 @@ CREATE TABLE `bookings` (
   `status` enum('pending','completed','cancelled') DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `bookings`
+--
+
+INSERT INTO `bookings` (`booking_id`, `first_name`, `last_name`, `email`, `phone`, `booking_date`, `booking_time`, `no_of_guest`, `room_type_id`, `status`) VALUES
+(15, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '345456', '2025-08-27', 'morning', 1, 0, 'cancelled'),
+(16, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '3456', '2025-08-26', 'morning', 2, 0, 'cancelled'),
+(17, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '456', '2025-08-26', 'morning', 1, 0, 'completed'),
+(18, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '09879874', '2025-09-03', 'morning', 1, 0, 'pending');
+
 -- --------------------------------------------------------
 
 --
@@ -77,8 +88,16 @@ CREATE TABLE `guests` (
   `checkin_date` date NOT NULL,
   `checkout_date` date DEFAULT NULL,
   `no_of_guest` tinyint(1) NOT NULL,
-  `status` varchar(200) DEFAULT NULL
+  `status` varchar(200) DEFAULT NULL,
+  `password` varchar(250) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `guests`
+--
+
+INSERT INTO `guests` (`guest_id`, `room_id`, `first_name`, `last_name`, `email`, `phone`, `checkin_date`, `checkout_date`, `no_of_guest`, `status`, `password`) VALUES
+(40, 23, 'dfgert', 'aa', 'kentjoshuazamoradaborbor@gmail.com', '09654', '2025-08-30', '2025-08-30', 0, 'checked_out', '$2y$10$235d8L/c.rDIz2kCbpSM6.YjTHDWfKaYXLPRRwhJcwbM2w31zq18u');
 
 -- --------------------------------------------------------
 
@@ -93,6 +112,13 @@ CREATE TABLE `rooms` (
   `status` enum('available','occupied') NOT NULL,
   `archive` enum('yes','no') NOT NULL DEFAULT 'no'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `rooms`
+--
+
+INSERT INTO `rooms` (`room_id`, `guest_id`, `room_type_id`, `status`, `archive`) VALUES
+(23, NULL, 16, 'available', 'no');
 
 -- --------------------------------------------------------
 
@@ -164,6 +190,13 @@ CREATE TABLE `transactions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 --
+-- Dumping data for table `transactions`
+--
+
+INSERT INTO `transactions` (`transaction_id`, `guest_id`, `room_id`, `room_type_id`, `bill_month`, `description`, `amount`, `total_amount`, `checkin_time`, `checkout`, `checkout_time`, `bill`, `is_paid`, `created_at`) VALUES
+(49, 40, 23, 16, '2025-08', 'aaaaaaaaa', 3.00, 1203.00, '00:00:00', '0000-00-00', '00:00:00', '', '1', '2025-08-24 10:28:03');
+
+--
 -- Indexes for dumped tables
 --
 
@@ -225,19 +258,19 @@ ALTER TABLE `transactions`
 -- AUTO_INCREMENT for table `admin`
 --
 ALTER TABLE `admin`
-  MODIFY `admin_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `admin_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `guests`
 --
 ALTER TABLE `guests`
-  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT for table `rooms_archive`
@@ -261,7 +294,7 @@ ALTER TABLE `room_types`
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
+  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- Constraints for dumped tables
