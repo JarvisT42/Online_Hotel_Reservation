@@ -110,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Recipients
                 $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
                 $mail->addAddress($email); // send to guest email
+                $mail->addBCC('support@shiojiapartelle.site'); // Admin copy
 
                 // Content
                 $mail->isHTML(true);
@@ -154,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmt->execute()) {
             // ✅ Send cancellation email
-         
+
 
             try {
                 // Server settings
@@ -169,6 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Recipients
                 $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
                 $mail->addAddress($email); // send to guest email
+                $mail->addBCC('support@shiojiapartelle.site'); // Admin copy
 
                 // Content
                 $mail->isHTML(true);

@@ -18,50 +18,6 @@
                   <span class="nav-text">Dashboard</span>
               </a>
           </li>
-          <li class="nav-item">
-              <a class="nav-link <?php if ($currentPage == 'bookings.php') echo 'active'; ?>" href="bookings.php">
-                  <i class="fas fa-calendar-check"></i>
-                  <span class="nav-text">Bookings</span>
-              </a>
-          </li>
-          <li class="nav-item">
-              <a class="nav-link <?php if ($currentPage == 'rooms.php') echo 'active'; ?>" href="rooms.php">
-                  <i class="fas fa-bed"></i>
-                  <span class="nav-text">Rooms</span>
-              </a>
-          </li>
-          <li class="nav-item ">
-              <a class="nav-link <?php if ($currentPage == 'room_pricing.php') echo 'active'; ?>" href="room_pricing.php">
-                  <i class="fas fa-sign-out-alt"></i>
-                  <span class="nav-text">Add Room Type/Pricing</span>
-              </a>
-          </li>
-
-          <li class="nav-item">
-              <a class="nav-link <?php if ($currentPage == 'guest.php') echo 'active'; ?>" href="guest.php">
-                  <i class="fas fa-users"></i>
-                  <span class="nav-text">Guest</span>
-              </a>
-          </li>
-          <!-- <li class="nav-item">
-              <a class="nav-link <?php if ($currentPage == 'reports.php') echo 'active'; ?>" href="reports.php">
-                  <i class="fas fa-chart-bar"></i>
-                  <span class="nav-text">Reports</span>
-              </a>
-          </li> -->
-          <li class="nav-item">
-              <a class="nav-link <?php if ($currentPage == 'GArchive.php') echo 'active'; ?>" href="GArchive.php">
-                  <i class="fas fa-users"></i>
-                  <span class="nav-text">Guest Archive</span>
-              </a>
-          </li>
-
-          <!-- <li class="nav-item">
-              <a class="nav-link <?php if ($currentPage == 'create_account_guest.php') echo 'active'; ?>" href="create_account_guest.php">
-                  <i class="fas fa-users"></i>
-                  <span class="nav-text">Create Account Guest</span>
-              </a>
-          </li> -->
 
 
           <li class="nav-item">
@@ -70,14 +26,9 @@
                   <span class="nav-text">Settings</span>
               </a>
           </li>
-          <li class="nav-item">
-              <a class="nav-link <?php if ($currentPage == 'archive.php') echo 'active'; ?>" href="archive.php">
-                  <i class="fas fa-cog"></i>
-                  <span class="nav-text">Archive</span>
-              </a>
-          </li>
 
-          <u class="mt-4">&nbsp;&nbsp;Finance</u>
+
+          <!-- <u class="mt-4">&nbsp;&nbsp;Finance</u> -->
 
           <li class="nav-item ">
               <a class="nav-link <?php if ($currentPage == 'billing.php') echo 'active'; ?>" href="billing.php">
@@ -85,12 +36,12 @@
                   <span class="nav-text">Billing</span>
               </a>
           </li>
-          <li class="nav-item ">
+          <!-- <li class="nav-item ">
               <a class="nav-link <?php if ($currentPage == 'invoice.php') echo 'active'; ?>" href="invoice.php">
                   <i class="fas fa-sign-out-alt"></i>
                   <span class="nav-text">Transactions</span>
               </a>
-          </li>
+          </li> -->
 
           <li class="nav-item mt-4">
               <a class="nav-link <?php if ($currentPage == 'logout.php') echo 'active'; ?>" href="logout.php">

@@ -203,12 +203,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <!-- Unpaid Months Dropdown -->
-                <div class="mb-3">
-                    <label class="form-label">For the Month of</label>
-                    <select class="form-select" name="bill_month" id="billMonthSelect" required>
-                        <option value="">-- Select Month --</option>
-                    </select>
+                <!-- Unpaid Months Dropdown + Days Input -->
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label">Select Guest</label>
+                        <select class="form-select" name="bill_month" id="billMonthSelect" required>
+                            <option value="">-- Select Month --</option>
+                        </select>
+                    </div>
+
+                    <!-- Room Type Info -->
+                    <div class="mb-3 col-md-6">
+                        <small class="form-label">Days</small>
+                        <input type="number" class="form-control" name="days" id="daysInput" min="1" value="0" required>
+
+                    </div>
+
+
+
+
+
+
                 </div>
+
+
+
+
+
 
                 <!-- Additional Charges -->
                 <div class="mb-4">
@@ -241,9 +262,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     const roomInfo = document.getElementById('roomInfo');
                     const monthSelect = document.getElementById('billMonthSelect');
                     const roomPriceInput = document.getElementById('roomPrice');
+                    const daysInput = document.getElementById('daysInput');
 
                     // Reset month dropdown
                     monthSelect.innerHTML = '<option value="">-- Select Month --</option>';
+                    daysInput.value = 0;
 
                     if (guestData[selectedId]) {
                         const price = parseFloat(guestData[selectedId].price.replace(/,/g, '')) || 0;
@@ -266,27 +289,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         roomInfo.value = '';
                         roomPriceInput.value = '';
+                        daysInput.value = 0;
                         updateTotal();
                     }
                 });
 
                 document.getElementById('additionalAmount').addEventListener('input', updateTotal);
-                document.getElementById('billMonthSelect').addEventListener('change', updateTotal);
+                document.getElementById('billMonthSelect').addEventListener('change', function() {
+                    const monthValue = this.value;
+                    const daysInput = document.getElementById('daysInput');
+
+                    if (monthValue) {
+                        const [year, month] = monthValue.split('-').map(Number);
+                        const daysInMonth = new Date(year, month, 0).getDate();
+                        daysInput.value = daysInMonth; // ✅ default full month days
+                    } else {
+                        daysInput.value = 0;
+                    }
+                    updateTotal();
+                });
+                document.getElementById('daysInput').addEventListener('input', updateTotal);
 
                 function updateTotal() {
                     const roomPrice = parseFloat(document.getElementById('roomPrice').value) || 0;
                     const additional = parseFloat(document.getElementById('additionalAmount').value) || 0;
-                    const monthValue = document.getElementById('billMonthSelect').value;
+                    const days = parseInt(document.getElementById('daysInput').value) || 0;
 
-                    let total = 0;
-
-                    if (monthValue) {
-                        const [year, month] = monthValue.split('-').map(Number);
-                        const daysInMonth = new Date(year, month, 0).getDate(); // get days in that month
-                        total = (roomPrice * daysInMonth) + additional;
-                    } else {
-                        total = additional; // if no month selected, just show additional
-                    }
+                    let total = (roomPrice * days) + additional;
 
                     document.getElementById('totalAmount').value =
                         `₱${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;

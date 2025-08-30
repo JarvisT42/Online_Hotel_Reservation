@@ -9,6 +9,26 @@ if (!isset($_SESSION['admin_logged_in'])) {
 include '../connect.php';
 
 
+
+
+
+// Handle form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+
+
+    if (isset($_POST['archive'])) {
+        $guest_id = $_POST['guest_id'];
+
+        $stmt = $conn->prepare("UPDATE guests SET status = 'checked_out' WHERE guest_id = ?");
+        $stmt->bind_param("i", $guest_id);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+
+
 // Fetch bookings
 
 $sql = "
@@ -19,7 +39,7 @@ $sql = "
     FROM guests g
     LEFT JOIN rooms r ON g.room_id = r.room_id
     LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
-    WHERE g.status = 'checked_out'
+    WHERE g.status = 'archive'
 ";
 
 $result = $conn->query($sql);
@@ -92,6 +112,7 @@ $result = $conn->query($sql);
                                 <th>Check-out Date</th>
                                 <th>Room Type</th>
                                 <th>Assigned Room</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -105,6 +126,19 @@ $result = $conn->query($sql);
 
                                         <td><?php echo htmlspecialchars($row['room_type'] ?? 'Standard'); ?></td>
                                         <td><?php echo htmlspecialchars($row['room_id'] ?? '—'); ?></td>
+
+                                        <td>
+                                            <form action="" method="POST"
+                                                onsubmit="return confirm('Are you sure you want to check out this guest?');">
+                                                <input type="hidden" name="email" value="<?php echo htmlspecialchars($row['email']); ?>">
+                                                <input type="hidden" name="guest_id" value="<?php echo htmlspecialchars($row['guest_id']); ?>">
+                                                <button type="submit" name="archive" class="btn btn-secondary btn-sm">
+                                                    <i class="fas fa-door-open"></i> Unarchive
+                                                </button>
+                                            </form>
+                                        </td>
+
+
                                     </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>

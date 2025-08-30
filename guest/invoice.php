@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['admin_logged_in'])) {
+if (!isset($_SESSION['guest_logged_in'])) {
     header("Location: ../login.php");
     exit;
 }
@@ -68,6 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </thead>
                     <tbody>
                         <?php
+                        $guestId = $_SESSION['guest_id'] ?? null;
+
                         $sql = "SELECT 
     t.transaction_id,
     CONCAT(g.first_name, ' ', g.last_name) AS full_name,
@@ -77,16 +79,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     t.bill_month,
     t.description,
     t.amount,
-        t.total_amount,
+    t.total_amount,
     t.created_at
 FROM transactions t
 LEFT JOIN guests g ON g.guest_id = t.guest_id
 LEFT JOIN rooms r ON r.room_id = t.room_id
 LEFT JOIN room_types rt ON t.room_type_id = rt.room_type_id
+WHERE t.guest_id = ?
 ORDER BY t.created_at DESC";
 
-
-                        $result = $conn->query($sql);
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("i", $guestId);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
 
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr>";
@@ -96,7 +101,6 @@ ORDER BY t.created_at DESC";
                             echo "<td>" . htmlspecialchars($row['description']) . "</td>";
                             echo "<td>₱" . number_format($row['amount'], 2) . "</td>";
                             echo "<td>₱" . number_format($row['total_amount'], 2) . "</td>";
-
                             echo "<td>" . htmlspecialchars($row['created_at'] ?? '—') . "</td>";
 
                             echo '<td><button 
@@ -106,19 +110,20 @@ ORDER BY t.created_at DESC";
         data-transaction-id="' . htmlspecialchars($row['transaction_id']) . '"
         data-room-id="' . htmlspecialchars($row['room_id']) . '"
         data-room-type="' . htmlspecialchars($row['room_type'] ?? 'N/A') . '"
-data-room-price="' . htmlspecialchars($row['room_price'] ?? '0.00') . '"
+        data-room-price="' . htmlspecialchars($row['room_price'] ?? '0.00') . '"
         data-bill-month="' . htmlspecialchars($row['bill_month']) . '"
         data-description="' . htmlspecialchars($row['description']) . '"
         data-amount="' . htmlspecialchars($row['amount']) . '"
-                data-total-amount="' . htmlspecialchars($row['total_amount']) . '"
-
+        data-total-amount="' . htmlspecialchars($row['total_amount']) . '"
         data-created="' . htmlspecialchars($row['created_at']) . '"
     >View</button></td>';
                             echo "</tr>";
                         }
 
+                        $stmt->close();
                         ?>
                     </tbody>
+
                 </table>
             </div>
         </div>
@@ -168,7 +173,7 @@ data-room-price="' . htmlspecialchars($row['room_price'] ?? '0.00') . '"
             $('.view-transaction').on('click', function() {
                 const roomPrice = parseFloat($(this).data('room-price')) || 0;
                 const amount = parseFloat($(this).data('amount')) || 0;
-              
+
                 const total = parseFloat($(this).data('total-amount')) || 0;
 
                 $('#modal-transaction-id').text($(this).data('transaction-id'));

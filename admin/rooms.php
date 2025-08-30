@@ -47,38 +47,49 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_room'])) {
 }
 
 
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['occupied'])) {
-
-
 
     $room_id = $_POST['room_id'];
     $first_name = $_POST['first_name'];
     $last_name = $_POST['last_name'];
     $email = $_POST['email'];
     $phone = $_POST['phone'];
+    $selected_guest_id = $_POST['selected_guest_id'] ?? null;
+    $datenow = date("Y-m-d H:i:s");
+    $status = "checked_in";
 
-    // Insert guest
-    $datenow = date("Y-m-d H:i:s"); // current date/time
-    $status = "checked_in"; // or whatever status you want
+    if ($selected_guest_id) {
+        // ✅ Update existing guest details + check-in
+        $stmt = $conn->prepare("UPDATE guests 
+                                SET room_id=?, status=?, checkin_date=?, 
+                                    first_name=?, last_name=?, email=?, phone=? 
+                                WHERE guest_id=?");
+        $stmt->bind_param(
+            "sssssssi",
+            $room_id,
+            $status,
+            $datenow,
+            $first_name,
+            $last_name,
+            $email,
+            $phone,
+            $selected_guest_id
+        );
+        $stmt->execute();
+        $stmt->close();
 
-    $stmt = $conn->prepare("INSERT INTO guests (room_id, first_name, last_name, email, phone, checkin_date, status) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param(
-        "issssss",
-        $room_id,
-        $first_name,
-        $last_name,
-        $email,
-        $phone,
-        $datenow,
-        $status
-    );
-    $stmt->execute();
-    $guest_id = $stmt->insert_id;
-    $stmt->close();
+        $guest_id = $selected_guest_id;
+    } else {
+        // ✅ Insert new guest
+        $stmt = $conn->prepare("INSERT INTO guests (room_id, first_name, last_name, email, phone, checkin_date, status) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("issssss", $room_id, $first_name, $last_name, $email, $phone, $datenow, $status);
+        $stmt->execute();
+        $guest_id = $stmt->insert_id;
+        $stmt->close();
+    }
 
-    // Update room as occupied
+    // ✅ Update room as occupied
     $stmt = $conn->prepare("UPDATE rooms SET status='occupied', guest_id=? WHERE room_id=?");
     $stmt->bind_param("ii", $guest_id, $room_id);
     $stmt->execute();
@@ -86,47 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['occupied'])) {
 
     header("Location: " . $_SERVER['PHP_SELF']);
     exit;
-
-
-
-
-
-    // $room_id = $_POST['room_id'];
-
-    // // 1. Check current status
-    // $checkSql = "SELECT status FROM rooms WHERE room_id = ?";
-    // $stmt = $conn->prepare($checkSql);
-
-    // if ($stmt) {
-    //     $stmt->bind_param("s", $room_id);
-    //     $stmt->execute();
-    //     $stmt->bind_result($currentStatus);
-    //     $stmt->fetch();
-    //     $stmt->close();
-
-    //     // 2. Determine the new status
-    //     $newStatus = ($currentStatus === 'occupied') ? NULL : 'occupied';
-
-    //     // 3. Update the status
-    //     $updateSql = "UPDATE rooms SET status = ? WHERE room_id = ?";
-    //     $stmt = $conn->prepare($updateSql);
-
-    //     if ($stmt) {
-    //         $stmt->bind_param("ss", $newStatus, $room_id);
-
-    //         if ($stmt->execute()) {
-    //             header("Location: " . $_SERVER['PHP_SELF']);
-    //             exit();
-    //         } else {
-    //             echo "Error executing update: " . $stmt->error;
-    //         }
-    //     } else {
-    //         echo "Error preparing update statement: " . $conn->error;
-    //     }
-    // } else {
-    //     echo "Error preparing select statement: " . $conn->error;
-    // }
 }
+
 
 // if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['available'])) {
 //     $room_id = $_POST['room_id'];
@@ -464,24 +436,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
                             <div class="modal-body">
                                 <input type="hidden" name="room_id" id="modal_room_id">
 
+                                <!-- Dropdown for checked-out guests -->
+                                <div class="mb-3">
+                                    <label class="form-label">Select Existing Guest</label>
+                                    <select id="guestDropdown" class="form-select" name="selected_guest_id">
+                                        <option value="">-- Select Guest --</option>
+                                        <?php
+                                        $sql = "SELECT guest_id, first_name, last_name, email, phone 
+            FROM guests 
+            WHERE status = 'checked_out'";
+                                        $result = $conn->query($sql);
+                                        while ($row = $result->fetch_assoc()):
+                                        ?>
+                                            <option value="<?php echo $row['guest_id']; ?>"
+                                                data-first="<?php echo htmlspecialchars($row['first_name']); ?>"
+                                                data-last="<?php echo htmlspecialchars($row['last_name']); ?>"
+                                                data-email="<?php echo htmlspecialchars($row['email']); ?>"
+                                                data-phone="<?php echo htmlspecialchars($row['phone']); ?>">
+                                                <?php echo htmlspecialchars($row['first_name'] . " " . $row['last_name']); ?>
+                                            </option>
+                                        <?php endwhile; ?>
+                                    </select>
+
+                                </div>
+
                                 <div class="mb-3">
                                     <label class="form-label">First Name</label>
-                                    <input type="text" name="first_name" class="form-control" required>
+                                    <input type="text" name="first_name" id="first_name" class="form-control" required>
                                 </div>
 
                                 <div class="mb-3">
                                     <label class="form-label">Last Name</label>
-                                    <input type="text" name="last_name" class="form-control" required>
+                                    <input type="text" name="last_name" id="last_name" class="form-control" required>
                                 </div>
 
                                 <div class="mb-3">
                                     <label class="form-label">Email</label>
-                                    <input type="email" name="email" class="form-control" required>
+                                    <input type="email" name="email" id="email" class="form-control" required>
                                 </div>
 
                                 <div class="mb-3">
                                     <label class="form-label">Phone Number</label>
-                                    <input type="number" name="phone" class="form-control" required>
+                                    <input type="number" name="phone" id="phone" class="form-control" required>
                                 </div>
 
                             </div>
@@ -491,6 +487,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
                         </form>
                     </div>
                 </div>
+
+                <script>
+                    document.getElementById('guestDropdown').addEventListener('change', function() {
+                        let option = this.options[this.selectedIndex];
+                        let emailInput = document.getElementById('email');
+
+                        if (this.value) {
+                            // Fill in existing guest details
+                            document.getElementById('first_name').value = option.getAttribute('data-first');
+                            document.getElementById('last_name').value = option.getAttribute('data-last');
+                            emailInput.value = option.getAttribute('data-email');
+                            document.getElementById('phone').value = option.getAttribute('data-phone');
+
+                            // ✅ Make email read-only if existing guest
+                            emailInput.readOnly = true;
+                        } else {
+                            // Clear inputs for new guest
+                            document.getElementById('first_name').value = '';
+                            document.getElementById('last_name').value = '';
+                            emailInput.value = '';
+                            document.getElementById('phone').value = '';
+
+                            // ✅ Allow typing email for new guest
+                            emailInput.readOnly = false;
+                        }
+                    });
+                </script>
+
+
+
+
 
 
 

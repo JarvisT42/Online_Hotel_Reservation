@@ -118,16 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['error_message'] = "Error assigning room: " . $conn->error;
         }
     }
-
-
-    if (isset($_POST['archive'])) {
-        $guest_id = $_POST['guest_id'];
-
-        $stmt = $conn->prepare("UPDATE guests SET status = 'archive' WHERE guest_id = ?");
-        $stmt->bind_param("i", $guest_id);
-        $stmt->execute();
-        $stmt->close();
-    }
 }
 
 // Fetch bookings
@@ -216,7 +206,7 @@ $roomResult = $conn->query($roomQuery);
         <!-- Card Content -->
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-list me-2"></i> Guest Check-In List
+                <i class="fas fa-list me-2"></i> Guest List
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -295,72 +285,6 @@ $roomResult = $conn->query($roomQuery);
                 </div>
             </div>
         </div>
-
-
-
-        <div class="card mt-4">
-            <div class="card-header">
-                <i class="fas fa-list me-2"></i> Guest Check-Out List
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table id="bookingsTable2" class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Guest Name</th>
-                                <th>Check-in Date</th>
-                                <th>Check-out Date</th>
-                                <th>Room Type</th>
-                                <th>Assigned Room</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $sql = "
-                        SELECT g.*, r.room_type_id, rt.type, rt.price, r.room_id
-                        FROM guests g
-                        LEFT JOIN rooms r ON g.room_id = r.room_id
-                        LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
-                        WHERE g.status = 'checked_out'
-                    ";
-                            $result2 = $conn->query($sql);
-                            ?>
-
-                            <?php if ($result2 && $result2->num_rows > 0): ?>
-                                <?php while ($row = $result2->fetch_assoc()): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
-                                        <td><?php echo date('M d, Y', strtotime($row['checkin_date'])); ?></td>
-                                        <td><?php echo date('M d, Y', strtotime($row['checkout_date'])); ?></td>
-                                        <td><?php echo htmlspecialchars($row['type'] ?? 'Standard'); ?></td>
-                                        <td><?php echo htmlspecialchars($row['room_id']); ?></td>
-                                        <td>
-                                            <form action="" method="POST"
-                                                onsubmit="return confirm('Are you sure you want to check out this guest?');">
-                                                <input type="hidden" name="email" value="<?php echo htmlspecialchars($row['email']); ?>">
-                                                <input type="hidden" name="guest_id" value="<?php echo htmlspecialchars($row['guest_id']); ?>">
-                                                <button type="submit" name="archive" class="btn btn-secondary btn-sm">
-                                                    <i class="fas fa-door-open"></i> Archive
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            <?php else: ?>
-                                <!-- <tr>
-                                    <td colspan="6" class="text-center py-4">No checked-out guests found</td>
-                                </tr> -->
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-
-
-
     </div>
 
     <!-- Assign Room Modal -->
@@ -427,18 +351,6 @@ $roomResult = $conn->query($roomQuery);
                     [0, 'desc']
                 ]
             });
-            $('#bookingsTable2').DataTable({
-                responsive: true,
-                order: [
-                    [0, 'desc']
-                ],
-                columnDefs: [{
-                        targets: 4,
-                        className: "dt-head-left"
-                    } // 4 means 5th column (Assigned Room)
-                ]
-            });
-
 
             // Handle assign button click
             $('.assign-btn').on('click', function() {

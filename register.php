@@ -4,68 +4,77 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
-include 'connect.php'; // Your DB connection file
+include 'connect.php'; // DB connection
+
+$error = '';
+$success = '';
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
+    $confirm_password = trim($_POST['confirm_password']);
 
-    if (empty($email) || empty($password)) {
-        die("Please enter both email and password.");
-    }
-
-    // 1. Check in ADMIN table
-    $stmt = $conn->prepare("SELECT * FROM admin WHERE email = ?");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $adminResult = $stmt->get_result();
-
-    if ($adminResult->num_rows === 1) {
-        $admin = $adminResult->fetch_assoc();
-
-        if (password_verify($password, $admin['password'])) {
-            // Admin login success
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_id'] = $admin['admin_id'];
-            $_SESSION['admin_name'] = $admin['name'];
-
-            header("Location: admin/dashboard.php");
-            exit;
-        } else {
-            $error = "Invalid email or password.";
-        }
+    // Validation
+    if (empty($email) || empty($password) || empty($confirm_password)) {
+        $error = "Please fill in all fields.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Invalid email address.";
+    } elseif ($password !== $confirm_password) {
+        $error = "Passwords do not match.";
+    } elseif (strlen($password) < 8) {
+        $error = "Password must be at least 8 characters long.";
     } else {
-        // 2. Check in GUEST table
+        // Check if email already exists in guest table
         $stmt = $conn->prepare("SELECT * FROM guests WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
-        $guestResult = $stmt->get_result();
+        $result = $stmt->get_result();
 
-        if ($guestResult->num_rows === 1) {
-            $guest = $guestResult->fetch_assoc();
+        if ($result->num_rows > 0) {
+            // Email exists
+            $guest = $result->fetch_assoc();
+            if (empty($guest['password'])) {
+                // Update password if not set
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $update = $conn->prepare("UPDATE guests SET password = ? WHERE email = ?");
+                $update->bind_param("ss", $hashed_password, $email);
+                if ($update->execute()) {
+                    $_SESSION['guest_logged_in'] = true;
+                    $_SESSION['guest_id'] = $guest['guest_id'];
+                    $_SESSION['guest_email'] = $guest['email']; // ✅ store email
 
-            if (!empty($guest['password']) && password_verify($password, $guest['password'])) {
-                // Guest login success
+                    header("Location: guest/dashboard.php");
+                    exit;
+                } else {
+                    $error = "Something went wrong. Please try again.";
+                }
+            } else {
+                $error = "Email is already registered.";
+            }
+        } else {
+            // Email does not exist → Insert new guest
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            $insert = $conn->prepare("INSERT INTO guests (email, password) VALUES (?, ?)");
+            $insert->bind_param("ss", $email, $hashed_password);
+
+            if ($insert->execute()) {
                 $_SESSION['guest_logged_in'] = true;
-                $_SESSION['guest_id'] = $guest['guest_id'];
-                $_SESSION['first_name'] = $guest['first_name'];
-                $_SESSION['last_name']  = $guest['last_name'];
-
-
-                $_SESSION['guest_name'] = $guest['first_name'] . ' ' . $guest['last_name'];
-
-                $_SESSION['guest_email'] = $guest['email'];
+                $_SESSION['guest_id'] = $conn->insert_id;  // ✅ get last inserted guest_id
+                $_SESSION['guest_email'] = $email;         // ✅ store email
 
                 header("Location: guest/dashboard.php");
                 exit;
             } else {
-                $error = "Invalid email or password.";
+                $error = "Error creating account: " . $insert->error;
             }
-        } else {
-            $error = "Invalid email or password.";
         }
     }
 }
+
+
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -73,15 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHIOJI APARTELLE - Admin Login</title>
-    <!-- Bootstrap CSS -->
-    <!-- <link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">-->
-    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
-    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> -->
-
-
+    <title>SHIOJI APARTELLE - Admin Registration</title>
     <!-- Font Awesome -->
-    <!-- Google Fonts -->
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css"> <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -103,18 +106,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-family: 'Poppins', sans-serif;
             background-color: #f5f7fa;
             color: var(--dark);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, #2a5d8a 0%, #1a2a3a 100%);
             position: relative;
-            overflow: hidden;
+            overflow: auto;
+            padding: 20px;
         }
 
-        .login-container {
+        .registration-container {
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
             padding: 30px;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
@@ -124,18 +128,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             animation: fadeIn 0.6s ease-out;
         }
 
-        .login-header {
+        .registration-header {
             text-align: center;
             margin-bottom: 30px;
         }
 
-        .login-header h2 {
+        .registration-header h2 {
             font-weight: 700;
             color: var(--primary);
             margin-bottom: 10px;
         }
 
-        .login-header p {
+        .registration-header p {
             color: var(--gray);
             font-size: 0.95rem;
         }
@@ -188,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1.1rem;
         }
 
-        .btn-login {
+        .btn-register {
             background: var(--primary);
             color: white;
             border: none;
@@ -202,13 +206,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 10px;
         }
 
-        .btn-login:hover {
+        .btn-register:hover {
             background: #1f4a6d;
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(42, 93, 138, 0.4);
         }
 
-        .btn-login:active {
+        .btn-register:active {
             transform: translateY(0);
         }
 
@@ -240,57 +244,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-decoration: underline;
         }
 
-        .divider {
-            text-align: center;
-            margin: 25px 0;
-            position: relative;
-        }
-
-        .divider:before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 100%;
-            height: 1px;
-            background: #ddd;
-            z-index: 1;
-        }
-
-        .divider span {
-            background: white;
-            padding: 0 15px;
-            position: relative;
-            z-index: 2;
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-
-        .social-login {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-
-
-
-
-        .register-link {
+        .login-link {
             text-align: center;
             margin-top: 20px;
             font-size: 0.95rem;
         }
 
-        .register-link a {
+        .login-link a {
             color: var(--primary);
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s;
         }
 
-        .register-link a:hover {
+        .login-link a:hover {
             color: var(--accent);
             text-decoration: underline;
         }
@@ -300,6 +267,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.85rem;
             margin-top: 5px;
             display: none;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .error {
+            background-color: #ffebee;
+            color: #dc3545;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background-color: #e8f5e9;
+            color: #28a745;
+            border: 1px solid #c3e6cb;
         }
 
         .decoration {
@@ -400,8 +386,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         @media (max-width: 576px) {
-            .login-container {
-                margin: 0 20px;
+            .registration-container {
+                margin: 0 10px;
                 padding: 25px;
             }
 
@@ -418,9 +404,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 display: none;
             }
         }
-
-
-
 
         .login-navbar {
             position: absolute;
@@ -478,7 +461,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <nav class="login-navbar">
         <a href="index.php" class="brand-logo">
-            <i class="fas fa-hotel"></i>
             SHIOJI APARTELLE
         </a>
         <a href="index.php" class="nav-button">
@@ -492,94 +474,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="decoration triangle"></div>
     <div class="decoration square"></div>
 
-
-
-
-
-    <div class="login-container">
-        <div class="login-header">
+    <div class="registration-container">
+        <div class="registration-header">
             <div class="logo">
                 <div class="logo-inner">
-                    <!-- SVG Logo -->
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                        width="50" height="50"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        class="feather feather-home">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                        <polyline points="9 22 9 12 15 12 15 22" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-user-plus">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="23" y1="11" x2="17" y2="11"></line>
                     </svg>
                 </div>
             </div>
             <h2>SHIOJI APARTELLE</h2>
-            <p>Administrator Login</p>
+            <p>Create Administrator Account</p>
         </div>
 
-
-
-
         <?php if (!empty($error)) : ?>
-            <div style="color:red; margin-bottom:10px;"><?php echo htmlspecialchars($error); ?></div>
+            <div class="message error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
-        <form method="POST" id="loginForm" action="login.php" novalidate>
-            <div class="form-group">
-                <i class="fas fa-user input-icon"></i>
+        <?php if (!empty($success)) : ?>
+            <div class="message success"><?php echo htmlspecialchars($success); ?></div>
+        <?php endif; ?>
 
-                <input type="text" class="form-control" id="email" name="email" placeholder="email" required>
-                <div class="error-message" id="email-error" style="display:none; color:red;">Please enter your email</div>
+        <form method="POST" id="registrationForm" action="" novalidate>
+            <div class="form-group">
+                <i class="fas fa-envelope input-icon"></i>
+                <input type="email" class="form-control" id="email" name="email" placeholder="Email Address"
+                    value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
+                <div class="error-message" id="email-error">Please enter a valid email address</div>
             </div>
 
             <div class="form-group">
                 <i class="fas fa-lock input-icon"></i>
                 <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
-                <div class="error-message" id="password-error" style="display:none; color:red;">Please enter your password</div>
+                <div class="error-message" id="password-error">Password must be at least 8 characters</div>
             </div>
 
-            <button type="submit" class="btn-login">
-                <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
+            <div class="form-group">
+                <i class="fas fa-lock input-icon"></i>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+                <div class="error-message" id="confirm-password-error">Passwords do not match</div>
+            </div>
+
+            <button type="submit" class="btn-register">
+                <i class="fas fa-user-plus me-2"></i>Register Account
             </button>
-
-            <div class="form-footer">
-                <div class="remember-me">
-                    <input type="checkbox" id="remember" name="remember">
-                    <label for="remember">Remember me</label>
-                </div>
-                <!-- <a href="#" class="forgot-password">Forgot Password?</a> -->
-            </div>
         </form>
 
 
 
-
-        <div class="register-link">
-            Don't have an account? <a href="register.php">register.php</a>
+        <div class="login-link">
+            Already have an account? <a href="login.php">Login here</a>
         </div>
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('registrationForm').addEventListener('submit', function(e) {
             // Clear previous errors
-            const emailError = document.getElementById('email-error');
-            const passwordError = document.getElementById('password-error');
-            emailError.style.display = 'none';
-            passwordError.style.display = 'none';
+            const errorElements = document.querySelectorAll('.error-message');
+            errorElements.forEach(el => el.style.display = 'none');
 
             let isValid = true;
 
-            const email = document.getElementById('email').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
+            const confirmPassword = document.getElementById('confirm_password').value.trim();
 
-            if (!email) {
-                emailError.style.display = 'block';
+            // Validate name
+            if (!name) {
+                document.getElementById('name-error').style.display = 'block';
                 isValid = false;
             }
-            if (!password) {
-                passwordError.style.display = 'block';
+
+            // Validate username
+            if (!username) {
+                document.getElementById('username-error').style.display = 'block';
+                isValid = false;
+            }
+
+            // Validate password
+            if (!password || password.length < 8) {
+                document.getElementById('password-error').style.display = 'block';
+                isValid = false;
+            }
+
+            // Validate confirm password
+            if (password !== confirmPassword) {
+                document.getElementById('confirm-password-error').style.display = 'block';
                 isValid = false;
             }
 
@@ -587,8 +571,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 e.preventDefault(); // Prevent form submit if invalid
             } else {
                 // Optionally disable button to prevent multiple submits
-                this.querySelector('.btn-login').disabled = true;
-                this.querySelector('.btn-login').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
+                this.querySelector('.btn-register').disabled = true;
+                this.querySelector('.btn-register').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Registering...';
             }
         });
 
@@ -602,6 +586,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             input.addEventListener('blur', function() {
                 this.parentElement.querySelector('.input-icon').style.color = '#2a5d8a';
             });
+        });
+
+        // Real-time password confirmation validation
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+
+        confirmPasswordInput.addEventListener('input', function() {
+            if (passwordInput.value !== this.value) {
+                document.getElementById('confirm-password-error').style.display = 'block';
+            } else {
+                document.getElementById('confirm-password-error').style.display = 'none';
+            }
         });
     </script>
 </body>

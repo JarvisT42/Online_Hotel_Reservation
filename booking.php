@@ -78,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
             $mail->addAddress($email, $first_name . ' ' . $last_name);
 
+            $mail->addBCC('support@shiojiapartelle.site'); // Admin copy
 
 
 
