@@ -331,10 +331,21 @@ $roomResult = $conn->query($roomQuery);
                                 <?php while ($row = $result2->fetch_assoc()): ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
-                                        <td><?php echo date('M d, Y', strtotime($row['checkin_date'])); ?></td>
-                                        <td><?php echo date('M d, Y', strtotime($row['checkout_date'])); ?></td>
+                                        <td>
+                                            <?php echo $row['checkin_date']
+                                                ? date('M d, Y', strtotime($row['checkin_date']))
+                                                : ''; ?>
+                                        </td>
+
+                                        <td>
+                                            <?php echo $row['checkout_date']
+                                                ? date('M d, Y', strtotime($row['checkout_date']))
+                                                : ''; ?>
+                                        </td>
+
                                         <td><?php echo htmlspecialchars($row['type'] ?? 'Standard'); ?></td>
-                                        <td><?php echo htmlspecialchars($row['room_id']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['room_id'] ?? ''); ?></td>
+
                                         <td>
                                             <form action="" method="POST"
                                                 onsubmit="return confirm('Are you sure you want to check out this guest?');">

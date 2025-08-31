@@ -72,7 +72,7 @@ $result = $conn->query($sql);
         <div class="topbar">
             <div class="topbar-left">
                 <div class="d-flex align-items-center">
-                    <h4>History</h4>
+                    <h4>Guest Archive</h4>
 
                 </div>
             </div>

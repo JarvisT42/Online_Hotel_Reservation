@@ -59,6 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <th>Billing Month</th>
                             <th>Additional Charges</th>
                             <th>Amount</th>
+
+                            <th>Room Price</th>
+
                             <th>Total Amount</th>
 
                             <th>Created At</th>
@@ -69,32 +72,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <tbody>
                         <?php
                         $sql = "SELECT 
-    t.transaction_id,
-    CONCAT(g.first_name, ' ', g.last_name) AS full_name,
-    r.room_id,
-    rt.type AS room_type,
-    rt.price AS room_price,
-    t.bill_month,
-    t.description,
-    t.amount,
-        t.total_amount,
-    t.created_at
-FROM transactions t
-LEFT JOIN guests g ON g.guest_id = t.guest_id
-LEFT JOIN rooms r ON r.room_id = t.room_id
-LEFT JOIN room_types rt ON t.room_type_id = rt.room_type_id
-ORDER BY t.created_at DESC";
+                            t.transaction_id,
+                            CONCAT(g.first_name, ' ', g.last_name) AS full_name,
+                            r.room_id,
+                            rt.type AS room_type,
+                            rt.price AS room_price,
+                            t.bill_month,
+                            t.description,
+                            t.amount,
+                                t.total_amount,
+                            t.created_at
+                        FROM transactions t
+                        LEFT JOIN guests g ON g.guest_id = t.guest_id
+                        LEFT JOIN rooms r ON r.room_id = t.room_id
+                        LEFT JOIN room_types rt ON t.room_type_id = rt.room_type_id
+                        ORDER BY t.created_at DESC";
 
 
                         $result = $conn->query($sql);
 
                         while ($row = $result->fetch_assoc()) {
+                            $billMonth = DateTime::createFromFormat('Y-m', $row['bill_month']);
+
                             echo "<tr>";
-                            echo "<td>" . htmlspecialchars($row['transaction_id']) . "</td>";
+                            echo "<td class='text-start'>" . htmlspecialchars($row['transaction_id']) . "</td>";
                             echo "<td>" . htmlspecialchars($row['full_name']) . "</td>";
-                            echo "<td>" . htmlspecialchars($row['bill_month'] ?? '—') . "</td>";
+                            echo "<td>" . ($billMonth ? $billMonth->format('F Y') : htmlspecialchars($row['bill_month'])) . "</td>";
                             echo "<td>" . htmlspecialchars($row['description']) . "</td>";
                             echo "<td>₱" . number_format($row['amount'], 2) . "</td>";
+                            echo "<td>₱" . number_format($row['room_price'], 2) . " /day</td>";
+
                             echo "<td>₱" . number_format($row['total_amount'], 2) . "</td>";
 
                             echo "<td>" . htmlspecialchars($row['created_at'] ?? '—') . "</td>";
@@ -168,7 +175,7 @@ data-room-price="' . htmlspecialchars($row['room_price'] ?? '0.00') . '"
             $('.view-transaction').on('click', function() {
                 const roomPrice = parseFloat($(this).data('room-price')) || 0;
                 const amount = parseFloat($(this).data('amount')) || 0;
-              
+
                 const total = parseFloat($(this).data('total-amount')) || 0;
 
                 $('#modal-transaction-id').text($(this).data('transaction-id'));
@@ -186,11 +193,7 @@ data-room-price="' . htmlspecialchars($row['room_price'] ?? '0.00') . '"
             $('.alert').delay(5000).fadeOut(400);
         });
     </script>
-    <script>
-        $(document).ready(function() {
-            $('#myTable').DataTable();
-        });
-    </script>
+
     <script>
         $(document).ready(function() {
             // Initialize DataTable

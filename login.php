@@ -516,7 +516,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
             <h2>SHIOJI APARTELLE</h2>
-            <p>Administrator Login</p>
+            <p>Login</p>
         </div>
 
 
@@ -549,7 +549,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="checkbox" id="remember" name="remember">
                     <label for="remember">Remember me</label>
                 </div>
-                <!-- <a href="#" class="forgot-password">Forgot Password?</a> -->
+                <a href="forgot.php" class="forgot-password">Forgot Password?</a>
             </div>
         </form>
 

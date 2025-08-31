@@ -37,8 +37,9 @@ if (!isset($_SESSION['guest_logged_in'])) {
                     <h4 class="mb-0">Dashboard</h4>
                     <div class="ms-3 text-muted d-none d-md-block">
                         <i class="fas fa-calendar me-1"></i>
-                        <span id="currentDate">June 6, 2023</span>
+                        <span id="currentDate"><?php echo date("F j, Y"); ?></span>
                     </div>
+
                 </div>
             </div>
             <div class="user-info">
@@ -276,15 +277,6 @@ if (!isset($_SESSION['guest_logged_in'])) {
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Set current date
-        const today = new Date();
-        const options = {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        };
-        document.getElementById('currentDate').textContent = today.toLocaleDateString('en-US', options);
-
         // Sidebar toggle functionality
 
 

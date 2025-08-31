@@ -82,11 +82,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['unarchive'])) {
         <div class="topbar">
             <div class="topbar-left">
                 <div class="d-flex align-items-center">
-                    <h4 class="mb-0">Rooms</h4>
-                    <div class="ms-3 text-muted d-none d-md-block">
+                    <h4 class="mb-0">Archive</h4>
+                    <!-- <div class="ms-3 text-muted d-none d-md-block">
                         <i class="fas fa-bed me-1"></i>
                         <span id="currentDate">Available 9</span>
-                    </div>
+                    </div> -->
                 </div>
 
             </div>

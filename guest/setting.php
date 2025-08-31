@@ -343,8 +343,9 @@ $conn->close();
                     <h4 class="mb-0">Profile Settings</h4>
                     <div class="ms-3 text-muted d-none d-md-block">
                         <i class="fas fa-calendar me-1"></i>
-                        <span id="currentDate">June 6, 2023</span>
+                        <span id="currentDate"><?php echo date("F j, Y"); ?></span>
                     </div>
+
                 </div>
             </div>
             <div class="user-info">

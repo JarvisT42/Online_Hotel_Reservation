@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.2
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Aug 30, 2025 at 01:17 PM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- Host: 127.0.0.1:3306
+-- Generation Time: Aug 31, 2025 at 11:45 AM
+-- Server version: 10.11.10-MariaDB-log
+-- PHP Version: 7.2.34
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `db_hor`
+-- Database: `u756490121_db_hor`
 --
 
 -- --------------------------------------------------------
@@ -40,8 +40,7 @@ CREATE TABLE `admin` (
 --
 
 INSERT INTO `admin` (`admin_id`, `name`, `email`, `username`, `password`) VALUES
-(1, 'sdf', 'asd@gmail.com', 'asd', '$2y$10$deY3Vagd85poMdQHaZdJXeSAkCeIQXrNQtoPB0gBhtgFcBaSvbrTe'),
-(2, 'wer', '', 'wer', '$2y$10$ciuxixvtCb10wJtVGPPpd.1WGoOt60dOx4T.9.U/jJrQE1To9oaN.');
+(1, 'sdf', 'asd@gmail.com', 'asd', '$2y$10$deY3Vagd85poMdQHaZdJXeSAkCeIQXrNQtoPB0gBhtgFcBaSvbrTe');
 
 -- --------------------------------------------------------
 
@@ -67,10 +66,7 @@ CREATE TABLE `bookings` (
 --
 
 INSERT INTO `bookings` (`booking_id`, `first_name`, `last_name`, `email`, `phone`, `booking_date`, `booking_time`, `no_of_guest`, `room_type_id`, `status`) VALUES
-(15, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '345456', '2025-08-27', 'morning', 1, 0, 'cancelled'),
-(16, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '3456', '2025-08-26', 'morning', 2, 0, 'cancelled'),
-(17, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '456', '2025-08-26', 'morning', 1, 0, 'completed'),
-(18, 'kent joshua', 'daborbor', 'kentjoshuazamoradaborbor@gmail.com', '09879874', '2025-09-03', 'morning', 1, 0, 'pending');
+(20, 'sa', 'sa', 'sample@gmail.com', '09854987', '2025-09-03', 'morning', 1, 0, 'completed');
 
 -- --------------------------------------------------------
 
@@ -85,7 +81,7 @@ CREATE TABLE `guests` (
   `last_name` varchar(200) NOT NULL,
   `email` varchar(200) NOT NULL,
   `phone` varchar(200) NOT NULL,
-  `checkin_date` date NOT NULL,
+  `checkin_date` date DEFAULT NULL,
   `checkout_date` date DEFAULT NULL,
   `no_of_guest` tinyint(1) NOT NULL,
   `status` varchar(200) DEFAULT NULL,
@@ -97,7 +93,28 @@ CREATE TABLE `guests` (
 --
 
 INSERT INTO `guests` (`guest_id`, `room_id`, `first_name`, `last_name`, `email`, `phone`, `checkin_date`, `checkout_date`, `no_of_guest`, `status`, `password`) VALUES
-(40, 23, 'dfgert', 'aa', 'kentjoshuazamoradaborbor@gmail.com', '09654', '2025-08-30', '2025-08-30', 0, 'checked_out', '$2y$10$235d8L/c.rDIz2kCbpSM6.YjTHDWfKaYXLPRRwhJcwbM2w31zq18u');
+(50, 200, 'sa', 'sa', 'kentjoshuazamoradaborbor@gmail.com', '09854987', '2025-03-13', NULL, 1, 'checked_in', '$2y$10$deY3Vagd85poMdQHaZdJXeSAkCeIQXrNQtoPB0gBhtgFcBaSvbrTe');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `password_reset_tokens`
+--
+
+CREATE TABLE `password_reset_tokens` (
+  `id` int(11) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `password_reset_tokens`
+--
+
+INSERT INTO `password_reset_tokens` (`id`, `email`, `token`, `created_at`) VALUES
+(1, 'kentjoshuazamoradaborbor@gmail.com', '58255a172abd506a607fa21d994431b9f218da37eeadceea05a24b6849cd8f29', '2025-08-31 01:57:38'),
+(2, 'kentjoshuazamoradaborbor@gmail.com', '1a694ae0af328c673aea7dea854d5d2b28f9b15b90a9f6684d609d39c051bebe', '2025-08-31 08:13:27');
 
 -- --------------------------------------------------------
 
@@ -118,7 +135,7 @@ CREATE TABLE `rooms` (
 --
 
 INSERT INTO `rooms` (`room_id`, `guest_id`, `room_type_id`, `status`, `archive`) VALUES
-(23, NULL, 16, 'available', 'no');
+(200, 50, 16, 'occupied', 'no');
 
 -- --------------------------------------------------------
 
@@ -194,7 +211,8 @@ CREATE TABLE `transactions` (
 --
 
 INSERT INTO `transactions` (`transaction_id`, `guest_id`, `room_id`, `room_type_id`, `bill_month`, `description`, `amount`, `total_amount`, `checkin_time`, `checkout`, `checkout_time`, `bill`, `is_paid`, `created_at`) VALUES
-(49, 40, 23, 16, '2025-08', 'aaaaaaaaa', 3.00, 1203.00, '00:00:00', '0000-00-00', '00:00:00', '', '1', '2025-08-24 10:28:03');
+(50, 50, 200, 16, '2025-03', 'break coffee glass', 50.00, 4700.00, '00:00:00', '0000-00-00', '00:00:00', '', '1', '2025-08-31 08:15:26'),
+(51, 50, 200, 16, '2025-04', '', 0.00, 4500.00, '00:00:00', '0000-00-00', '00:00:00', '', '1', '2025-08-31 08:16:06');
 
 --
 -- Indexes for dumped tables
@@ -217,6 +235,12 @@ ALTER TABLE `bookings`
 --
 ALTER TABLE `guests`
   ADD PRIMARY KEY (`guest_id`);
+
+--
+-- Indexes for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `rooms`
@@ -264,13 +288,19 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT for table `bookings`
 --
 ALTER TABLE `bookings`
-  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `guests`
 --
 ALTER TABLE `guests`
-  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+
+--
+-- AUTO_INCREMENT for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `rooms_archive`
@@ -294,7 +324,7 @@ ALTER TABLE `room_types`
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
 -- Constraints for dumped tables

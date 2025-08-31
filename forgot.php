@@ -4,84 +4,92 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
-include 'connect.php'; // DB connection
-
-$error = '';
-$success = '';
+include 'connect.php'; // Your DB connection file
 
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['next_step'])) {
-        // Step 1: Check email
-        $email = trim($_POST['email']);
-        $password = trim($_POST['password']);
-        $confirm_password = trim($_POST['confirm_password']);
 
-        if (empty($email) || empty($password) || empty($confirm_password)) {
-            $error = "Please fill in all fields.";
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = "Invalid email address.";
-        } elseif ($password !== $confirm_password) {
-            $error = "Passwords do not match.";
-        } elseif (strlen($password) < 8) {
-            $error = "Password must be at least 8 characters long.";
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'assets/PHPMailer-master/src/Exception.php';
+require 'assets/PHPMailer-master/src/PHPMailer.php';
+require 'assets/PHPMailer-master/src/SMTP.php';
+
+
+
+
+
+
+if (isset($_POST['reset_request'])) {
+    $email = trim($_POST['email']);
+
+    // Check if email exists in guests
+    $stmt = $conn->prepare("SELECT * FROM guests WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        // Generate token
+        $token = bin2hex(random_bytes(32));
+        $created_at = date("Y-m-d H:i:s");
+
+        // Insert token into table
+        $stmt = $conn->prepare("INSERT INTO password_reset_tokens (email, token, created_at) VALUES (?, ?, ?)");
+        $stmt->bind_param("sss", $email, $token, $created_at);
+        $stmt->execute();
+
+        // Send email
+
+        $is_local = (
+            strpos($_SERVER['HTTP_HOST'], 'localhost') !== false ||
+            strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false
+        );
+
+        // echo $is_local ? "Localhost" : "Remote server";
+
+        // Set database connection settings based on environment
+        if ($is_local) {
+
+            // Localhost settings
+            $resetLink = "http://localhost/Online_Hotel_Reservation/reset_password.php?token=$token&email=" . urlencode($email);
         } else {
-            // Check if email exists
-            $stmt = $conn->prepare("SELECT * FROM guests WHERE email = ?");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            $result = $stmt->get_result();
-
-            $guestData = null;
-            if ($result->num_rows > 0) {
-                $guestData = $result->fetch_assoc();
-            }
-
-            // Save step1 info to session
-            $_SESSION['step1_email'] = $email;
-            $_SESSION['step1_password'] = password_hash($password, PASSWORD_DEFAULT);
-            $_SESSION['step1_guest'] = $guestData;
-
-            // Tell frontend to move to step2
-            $showStep2 = true;
-        }
-    } elseif (isset($_POST['final_register'])) {
-        // Step 2: Save guest info
-        $first_name = trim($_POST['first_name']);
-        $last_name = trim($_POST['last_name']);
-        $phone = trim($_POST['phone']);
-        $email = $_SESSION['step1_email'];
-        $hashed_password = $_SESSION['step1_password'];
-
-        // If guest exists → update
-        if ($_SESSION['step1_guest']) {
-            $guest_id = $_SESSION['step1_guest']['guest_id'];
-            $stmt = $conn->prepare("UPDATE guests SET first_name=?, last_name=?, phone=?, password=? WHERE guest_id=?");
-            $stmt->bind_param("ssssi", $first_name, $last_name, $phone, $hashed_password, $guest_id);
-            $stmt->execute();
-            $_SESSION['guest_id'] = $guest_id;
-        } else {
-            // New guest
-            $status = "checked_out";
-            $stmt = $conn->prepare("INSERT INTO guests (first_name, last_name, phone, email, status, password) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssss", $first_name, $last_name, $phone, $email, $status, $hashed_password);
-            $stmt->execute();
-            $_SESSION['guest_id'] = $conn->insert_id;
+            // Remote server settings
+            $resetLink = "https://shiojiapartelle.site/reset_password.php?token=$token&email=" . urlencode($email);
         }
 
-        $_SESSION['guest_logged_in'] = true;
-        $_SESSION['guest_email'] = $email;
-        $_SESSION['first_name'] = $first_name;
-        $_SESSION['last_name']  = $last_name;
-        header("Location: guest/dashboard.php");
-        exit;
+
+
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.hostinger.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'support@shiojiapartelle.site';
+            $mail->Password   = 'Shioji@98';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            $mail->Port       = 465;
+
+            $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+            $mail->addAddress($email);
+
+            $mail->isHTML(true);
+            $mail->Subject = "Password Reset Request";
+            $mail->Body    = "Click the link below to reset your password:<br><br>
+                             <a href='$resetLink'>$resetLink</a>";
+
+            $mail->send();
+            $message = "A password reset link has been sent to your email.";
+        } catch (Exception $e) {
+            echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+        }
+    } else {
+        echo "No account found with that email.";
     }
 }
 
 
-
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -89,9 +97,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHIOJI APARTELLE - Admin Registration</title>
+    <title>SHIOJI APARTELLE - Admin Login</title>
+    <!-- Bootstrap CSS -->
+    <!-- <link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">-->
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> -->
+
+
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css"> <!-- Google Fonts -->
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -113,19 +127,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-family: 'Poppins', sans-serif;
             background-color: #f5f7fa;
             color: var(--dark);
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, #2a5d8a 0%, #1a2a3a 100%);
             position: relative;
-            overflow: auto;
-            padding: 20px;
+            overflow: hidden;
         }
 
-        .registration-container {
+        .login-container {
             width: 100%;
-            max-width: 450px;
+            max-width: 400px;
             padding: 30px;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
@@ -135,18 +148,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             animation: fadeIn 0.6s ease-out;
         }
 
-        .registration-header {
+        .login-header {
             text-align: center;
             margin-bottom: 30px;
         }
 
-        .registration-header h2 {
+        .login-header h2 {
             font-weight: 700;
             color: var(--primary);
             margin-bottom: 10px;
         }
 
-        .registration-header p {
+        .login-header p {
             color: var(--gray);
             font-size: 0.95rem;
         }
@@ -199,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1.1rem;
         }
 
-        .btn-register {
+        .btn-login {
             background: var(--primary);
             color: white;
             border: none;
@@ -213,13 +226,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 10px;
         }
 
-        .btn-register:hover {
+        .btn-login:hover {
             background: #1f4a6d;
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(42, 93, 138, 0.4);
         }
 
-        .btn-register:active {
+        .btn-login:active {
             transform: translateY(0);
         }
 
@@ -251,20 +264,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-decoration: underline;
         }
 
-        .login-link {
+        .divider {
+            text-align: center;
+            margin: 25px 0;
+            position: relative;
+        }
+
+        .divider:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: #ddd;
+            z-index: 1;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            position: relative;
+            z-index: 2;
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .social-login {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+
+
+
+
+        .register-link {
             text-align: center;
             margin-top: 20px;
             font-size: 0.95rem;
         }
 
-        .login-link a {
+        .register-link a {
             color: var(--primary);
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s;
         }
 
-        .login-link a:hover {
+        .register-link a:hover {
             color: var(--accent);
             text-decoration: underline;
         }
@@ -274,25 +324,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.85rem;
             margin-top: 5px;
             display: none;
-        }
-
-        .message {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .error {
-            background-color: #ffebee;
-            color: #dc3545;
-            border: 1px solid #f5c6cb;
-        }
-
-        .success {
-            background-color: #e8f5e9;
-            color: #28a745;
-            border: 1px solid #c3e6cb;
         }
 
         .decoration {
@@ -393,8 +424,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         @media (max-width: 576px) {
-            .registration-container {
-                margin: 0 10px;
+            .login-container {
+                margin: 0 20px;
                 padding: 25px;
             }
 
@@ -411,6 +442,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 display: none;
             }
         }
+
+
+
 
         .login-navbar {
             position: absolute;
@@ -468,6 +502,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <nav class="login-navbar">
         <a href="index.php" class="brand-logo">
+            <i class="fas fa-hotel"></i>
             SHIOJI APARTELLE
         </a>
         <a href="index.php" class="nav-button">
@@ -481,76 +516,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="decoration triangle"></div>
     <div class="decoration square"></div>
 
-    <div class="registration-container">
-        <div class="registration-header">
+
+
+
+
+    <div class="login-container">
+        <div class="login-header">
             <div class="logo">
                 <div class="logo-inner">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-user-plus">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="8.5" cy="7" r="4"></circle>
-                        <line x1="20" y1="8" x2="20" y2="14"></line>
-                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                    <!-- SVG Logo -->
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        width="50" height="50"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="feather feather-home">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
                     </svg>
                 </div>
             </div>
             <h2>SHIOJI APARTELLE</h2>
-            <p>Create Administrator Account</p>
+            <p>Forgot Password</p>
         </div>
 
-        <?php if (!empty($error)) : ?>
-            <div class="message error"><?php echo htmlspecialchars($error); ?></div>
+
+
+
+        <?php if (!empty($message)) : ?>
+            <div style="color:green; margin-bottom:10px;"><?php echo htmlspecialchars($message); ?></div>
         <?php endif; ?>
 
-        <?php if (!empty($success)) : ?>
-            <div class="message success"><?php echo htmlspecialchars($success); ?></div>
-        <?php endif; ?>
+        <form method="POST" action="forgot.php">
+            <div class="form-group">
+                <input type="email" name="email" class="form-control" placeholder="Enter your email" required>
+            </div>
+            <button type="submit" class="btn-login" name="reset_request">
+                <i class="fas fa-sign-in-alt me-2"></i>Send Reset Link
+            </button>
 
-        <form method="POST" id="registrationForm" action="">
-            <?php if (empty($showStep2)) : ?>
-                <!-- STEP 1: Email + Password -->
-                <div class="form-group">
-                    <i class="fas fa-envelope input-icon"></i>
-                    <input type="email" class="form-control" id="email" name="email" placeholder="Email Address"
-                        value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
-                </div>
-
-                <div class="form-group">
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
-                </div>
-
-                <button type="submit" name="next_step" class="btn-register">
-                    Next
-                </button>
-            <?php else: ?>
-                <!-- STEP 2: Guest info -->
-                <?php $guest = $_SESSION['step1_guest'] ?? null; ?>
-                <div class="form-group">
-                    <i class="fas fa-user input-icon"></i>
-                    <input type="text" class="form-control" name="first_name" placeholder="First Name"
-                        value="<?php echo htmlspecialchars($guest['first_name'] ?? ''); ?>" required>
-                </div>
-                <div class="form-group">
-                    <i class="fas fa-user input-icon"></i>
-                    <input type="text" class="form-control" name="last_name" placeholder="Last Name"
-                        value="<?php echo htmlspecialchars($guest['last_name'] ?? ''); ?>" required>
-                </div>
-                <div class="form-group">
-                    <i class="fas fa-phone input-icon"></i>
-                    <input type="number" class="form-control" name="phone" placeholder="Phone Number"
-                        value="<?php echo htmlspecialchars($guest['phone'] ?? ''); ?>" required>
-                </div>
-
-                <button type="submit" name="final_register" class="btn-register">
-                    Register Account
-                </button>
-            <?php endif; ?>
         </form>
+
 
 
 
@@ -560,43 +569,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
-
-
-
     <script>
-        document.getElementById('registrationForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
             // Clear previous errors
-            const errorElements = document.querySelectorAll('.error-message');
-            errorElements.forEach(el => el.style.display = 'none');
+            const emailError = document.getElementById('email-error');
+            const passwordError = document.getElementById('password-error');
+            emailError.style.display = 'none';
+            passwordError.style.display = 'none';
 
             let isValid = true;
 
-            const name = document.getElementById('name').value.trim();
-            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value.trim();
-            const confirmPassword = document.getElementById('confirm_password').value.trim();
 
-            // Validate name
-            if (!name) {
-                document.getElementById('name-error').style.display = 'block';
+            if (!email) {
+                emailError.style.display = 'block';
                 isValid = false;
             }
-
-            // Validate username
-            if (!username) {
-                document.getElementById('username-error').style.display = 'block';
-                isValid = false;
-            }
-
-            // Validate password
-            if (!password || password.length < 8) {
-                document.getElementById('password-error').style.display = 'block';
-                isValid = false;
-            }
-
-            // Validate confirm password
-            if (password !== confirmPassword) {
-                document.getElementById('confirm-password-error').style.display = 'block';
+            if (!password) {
+                passwordError.style.display = 'block';
                 isValid = false;
             }
 
@@ -604,8 +595,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 e.preventDefault(); // Prevent form submit if invalid
             } else {
                 // Optionally disable button to prevent multiple submits
-                this.querySelector('.btn-register').disabled = true;
-                this.querySelector('.btn-register').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Registering...';
+                this.querySelector('.btn-login').disabled = true;
+                this.querySelector('.btn-login').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
             }
         });
 
@@ -619,18 +610,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             input.addEventListener('blur', function() {
                 this.parentElement.querySelector('.input-icon').style.color = '#2a5d8a';
             });
-        });
-
-        // Real-time password confirmation validation
-        const passwordInput = document.getElementById('password');
-        const confirmPasswordInput = document.getElementById('confirm_password');
-
-        confirmPasswordInput.addEventListener('input', function() {
-            if (passwordInput.value !== this.value) {
-                document.getElementById('confirm-password-error').style.display = 'block';
-            } else {
-                document.getElementById('confirm-password-error').style.display = 'none';
-            }
         });
     </script>
 </body>
