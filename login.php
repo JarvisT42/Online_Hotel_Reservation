@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHIOJI APARTELLE - Admin Login</title>
+    <title>ShiBokBill - Admin Login</title>
     <!-- Bootstrap CSS -->
     <!-- <link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">-->
     <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
@@ -479,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <nav class="login-navbar">
         <a href="index.php" class="brand-logo">
             <i class="fas fa-hotel"></i>
-            SHIOJI APARTELLE
+            ShiBokBill
         </a>
         <a href="index.php" class="nav-button">
             <i class="fas fa-external-link-alt"></i> Home
@@ -515,7 +515,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </svg>
                 </div>
             </div>
-            <h2>SHIOJI APARTELLE</h2>
+            <h2>ShiBokBill</h2>
             <p>Login</p>
         </div>
 
@@ -534,11 +534,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="error-message" id="email-error" style="display:none; color:red;">Please enter your email</div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="position: relative;">
                 <i class="fas fa-lock input-icon"></i>
                 <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                <i class="fas fa-eye toggle-password" id="togglePassword"
+                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color:#2a5d8a;"></i>
                 <div class="error-message" id="password-error" style="display:none; color:red;">Please enter your password</div>
             </div>
+
 
             <button type="submit" class="btn-login">
                 <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
@@ -602,6 +605,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             input.addEventListener('blur', function() {
                 this.parentElement.querySelector('.input-icon').style.color = '#2a5d8a';
             });
+        });
+
+
+
+        // Toggle show/hide password
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordField = document.getElementById('password');
+
+        togglePassword.addEventListener('click', function() {
+            const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordField.setAttribute('type', type);
+
+            // Toggle eye / eye-slash icon
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
         });
     </script>
 </body>

@@ -514,15 +514,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="position: relative;">
                     <i class="fas fa-lock input-icon"></i>
                     <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
-                </div>
+                    <i class="fas fa-eye toggle-password" data-target="password"
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color:#2a5d8a;"></i>
+                    <div class="error-message" id="password-error" style="display:none; color:red;">Password must be at least 8 characters</div>
 
-                <div class="form-group">
+                </div>
+                <p> Password must be at least 8 characters
+                </p>
+                <div class="form-group" style="position: relative;">
                     <i class="fas fa-lock input-icon"></i>
                     <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+                    <i class="fas fa-eye toggle-password" data-target="confirm_password"
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color:#2a5d8a;"></i>
+                    <div class="error-message" id="confirm-password-error" style="display:none; color:red;">Passwords do not match</div>
                 </div>
+
 
                 <button type="submit" name="next_step" class="btn-register">
                     Next
@@ -631,6 +640,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 document.getElementById('confirm-password-error').style.display = 'none';
             }
+        });
+
+        document.querySelectorAll('.toggle-password').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const targetInput = document.getElementById(targetId);
+
+                const type = targetInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                targetInput.setAttribute('type', type);
+
+                // Toggle icon style
+                this.classList.toggle('fa-eye');
+                this.classList.toggle('fa-eye-slash');
+            });
         });
     </script>
 </body>

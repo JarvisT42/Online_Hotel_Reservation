@@ -13,7 +13,7 @@ require 'assets/PHPMailer-master/src/SMTP.php';
 // Process form submission
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $secretKey = "6LfApqArAAAAAEOmUTic4ZG3fLRVUHvdnz4hI55E"; // from Google reCAPTCHA
+    $secretKey = "6LdHF98rAAAAAMoVuHe0-TyP92CVMftXSIwB2N5c"; // from Google reCAPTCHA
     $responseKey = $_POST['g-recaptcha-response'];
     $userIP = $_SERVER['REMOTE_ADDR'];
 
@@ -66,8 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->isSMTP();
             $mail->Host       = 'smtp.hostinger.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'support@shiojiapartelle.site';
-            $mail->Password   = 'Shioji@98';
+            $mail->Username   = 'support@shibokbill.space';
+            $mail->Password   = 'Shibokbill@302';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port       = 465;
 
@@ -235,7 +235,7 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                             <!-- reCAPTCHA widget -->
                             <!-- reCAPTCHA widget -->
                             <div id="captchaContainer">
-                                <div class="g-recaptcha" data-sitekey="6LfApqArAAAAAF9ZV0d4kqJnp7ONwWqPYqL6RH_f"></div>
+                                <div class="g-recaptcha" data-sitekey="6LdHF98rAAAAALKbCtphX1OBHPSdzrvXQIC7_QVK"></div>
                             </div>
 
                             <br>

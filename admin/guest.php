@@ -49,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {
                 $mail->isSMTP();
                 $mail->Host       = 'smtp.hostinger.com';
                 $mail->SMTPAuth   = true;
-                $mail->Username   = 'support@shiojiapartelle.site';
-                $mail->Password   = 'Shioji@98';  // your email password
+                $mail->Username   = 'support@shibokbill.space';
+                $mail->Password   = 'Shibokbill@302';
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
                 $mail->Port       = 465;
 

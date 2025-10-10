@@ -65,12 +65,12 @@ if (isset($_POST['reset_request'])) {
             $mail->isSMTP();
             $mail->Host       = 'smtp.hostinger.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'support@shiojiapartelle.site';
-            $mail->Password   = 'Shioji@98';
+            $mail->Username   = 'support@shibokbill.space';
+            $mail->Password   = 'Shibokbill@302';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port       = 465;
 
-            $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+            $mail->setFrom('support@shibokbill.space', 'Shibokbill');
             $mail->addAddress($email);
 
             $mail->isHTML(true);
