@@ -107,9 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
                 $mail->Port       = 465;
                 // Recipients
-                $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+                $mail->setFrom('support@shibokbill.space', 'Shioji Apartelle');
                 $mail->addAddress($email); // send to guest email
-                $mail->addBCC('support@shiojiapartelle.site'); // Admin copy
+                $mail->addBCC('support@shibokbill.space'); // Admin copy
 
                 // Content
                 $mail->isHTML(true);
@@ -161,15 +161,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mail->isSMTP();
                 $mail->Host       = 'smtp.hostinger.com';
                 $mail->SMTPAuth   = true;
-                $mail->Username   = 'support@shiojiapartelle.site';
-                $mail->Password   = 'Shioji@98';
+                $mail->Username   = 'support@shibokbill.space';
+                $mail->Password   = 'Shibokbill@302';
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
                 $mail->Port       = 465;
 
                 // Recipients
-                $mail->setFrom('support@shiojiapartelle.site', 'Shioji Apartelle');
+                $mail->setFrom('support@shibokbill.space', 'Shioji Apartelle');
                 $mail->addAddress($email); // send to guest email
-                $mail->addBCC('support@shiojiapartelle.site'); // Admin copy
+                $mail->addBCC('support@shibokbill.space'); // Admin copy
 
                 // Content
                 $mail->isHTML(true);

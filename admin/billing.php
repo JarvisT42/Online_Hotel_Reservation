@@ -206,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Unpaid Months Dropdown + Days Input -->
                 <div class="row">
                     <div class="mb-3 col-md-6">
-                        <label class="form-label">Select Guest</label>
+                        <label class="form-label">Select Month</label>
                         <select class="form-select" name="bill_month" id="billMonthSelect" required>
                             <option value="">-- Select Month --</option>
                         </select>

@@ -494,7 +494,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
             <h2>SHIOJI APARTELLE</h2>
-            <p>Create Administrator Account</p>
+            <p>Create Account</p>
         </div>
 
         <?php if (!empty($error)) : ?>
@@ -541,17 +541,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php $guest = $_SESSION['step1_guest'] ?? null; ?>
                 <div class="form-group">
                     <i class="fas fa-user input-icon"></i>
-                    <input type="text" class="form-control" name="first_name" placeholder="First Name"
+                    <input type="text" class="form-control" name="first_name" placeholder="First Name" disabled
                         value="<?php echo htmlspecialchars($guest['first_name'] ?? ''); ?>" required>
                 </div>
                 <div class="form-group">
                     <i class="fas fa-user input-icon"></i>
-                    <input type="text" class="form-control" name="last_name" placeholder="Last Name"
+                    <input type="text" class="form-control" name="last_name" placeholder="Last Name" disabled
                         value="<?php echo htmlspecialchars($guest['last_name'] ?? ''); ?>" required>
                 </div>
                 <div class="form-group">
                     <i class="fas fa-phone input-icon"></i>
-                    <input type="number" class="form-control" name="phone" placeholder="Phone Number"
+                    <input type="number" class="form-control" name="phone" placeholder="Phone Number" disabled
                         value="<?php echo htmlspecialchars($guest['phone'] ?? ''); ?>" required>
                 </div>
 

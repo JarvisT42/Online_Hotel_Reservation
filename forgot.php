@@ -55,7 +55,7 @@ if (isset($_POST['reset_request'])) {
             $resetLink = "http://localhost/Online_Hotel_Reservation/reset_password.php?token=$token&email=" . urlencode($email);
         } else {
             // Remote server settings
-            $resetLink = "https://shiojiapartelle.site/reset_password.php?token=$token&email=" . urlencode($email);
+            $resetLink = "https://shibokbill.space/reset_password.php?token=$token&email=" . urlencode($email);
         }
 
 
