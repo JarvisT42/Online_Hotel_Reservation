@@ -4,8 +4,6 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
-
-
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -15,25 +13,119 @@ require '../assets/PHPMailer-master/src/SMTP.php';
 
 $mail = new PHPMailer(true);
 
-
 if (!isset($_SESSION['admin_logged_in'])) {
     header("Location: ../login.php");
     exit;
 }
 
 include '../connect.php';
+
+// Function to check if guest has unpaid bills for CURRENT stay only
+function hasUnpaidBills($guest_id, $conn)
+{
+    // Get the current check-in date for this specific stay
+    $checkin_sql = "SELECT checkin_date, checkout_date FROM guests WHERE guest_id = ? AND status = 'checked_in'";
+    $stmt_check = $conn->prepare($checkin_sql);
+    $stmt_check->bind_param("i", $guest_id);
+    $stmt_check->execute();
+    $result_check = $stmt_check->get_result();
+    $guest_data = $result_check->fetch_assoc();
+    $stmt_check->close();
+
+    if (!$guest_data) {
+        return false; // Guest not found or not checked in
+    }
+
+    $current_checkin = $guest_data['checkin_date'];
+
+    // If guest is checked out, use checkout_date as end date, otherwise use current date
+    $end_date = $guest_data['checkout_date'] ? $guest_data['checkout_date'] : date('Y-m-d');
+
+    // Calculate months from CURRENT check-in date to end date
+    $checkin = new DateTime($current_checkin);
+    $end = new DateTime($end_date);
+
+    // Start from the check-in month
+    $checkin->modify('first day of this month');
+    $end->modify('first day of this month');
+
+    $expected_months = [];
+    while ($checkin <= $end) {
+        $expected_months[] = $checkin->format('Y-m');
+        $checkin->modify('+1 month');
+    }
+
+    if (empty($expected_months)) {
+        return false; // No months expected
+    }
+
+    // Check if we have PAID transaction records for all expected months of CURRENT stay
+    $placeholders = str_repeat('?,', count($expected_months) - 1) . '?';
+    $sql = "
+        SELECT COUNT(*) as transaction_count 
+        FROM transactions 
+        WHERE guest_id = ? 
+        AND bill_month IN ($placeholders)
+        AND transaction_date >= ?
+        AND is_paid = '1'  -- Only count PAID transactions
+    ";
+
+    $stmt = $conn->prepare($sql);
+    $types = 'i' . str_repeat('s', count($expected_months)) . 's';
+    $params = array_merge([$guest_id], $expected_months, [$current_checkin]);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    $transaction_count = $row['transaction_count'];
+
+    // If PAID transaction count matches expected months, guest is fully paid for CURRENT stay
+    $has_all_transactions = $transaction_count == count($expected_months);
+
+    // Check for unpaid additional charges from CURRENT stay only
+    $sql_charges = "
+        SELECT COUNT(*) as unpaid_count 
+        FROM additional_charge 
+        WHERE guest_id = ? 
+        AND paid = 0
+        AND date >= ?
+    ";
+
+    $stmt2 = $conn->prepare($sql_charges);
+    $stmt2->bind_param("is", $guest_id, $current_checkin);
+    $stmt2->execute();
+    $result2 = $stmt2->get_result();
+    $row2 = $result2->fetch_assoc();
+    $stmt2->close();
+
+    $unpaid_charges = $row2['unpaid_count'] > 0;
+
+    // Guest has unpaid bills if:
+    // 1. Missing PAID transaction records for some months of CURRENT stay, OR
+    // 2. Has unpaid additional charges from CURRENT stay
+    return !$has_all_transactions || $unpaid_charges;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {
     $guest_id = trim($_POST['guest_id']);
     $email = $_POST['email'];
+
+    // Check if guest has unpaid bills before allowing checkout
+    if (hasUnpaidBills($guest_id, $conn)) {
+        $_SESSION['error_message'] = "Cannot check out guest. There are unpaid bills or additional charges.";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit;
+    }
 
     $checkout_date = date('Y-m-d');
 
     // Correct SQL with placeholders
     $stmt = $conn->prepare("UPDATE guests SET checkout_date = ?, status = 'checked_out' WHERE guest_id = ?");
-    $stmt->bind_param("si", $checkout_date, $guest_id); // "s" for string (date), "i" for integer (guest_id)
+    $stmt->bind_param("si", $checkout_date, $guest_id);
 
     if ($stmt->execute()) {
-
         // Now, update rooms table
         $roomStmt = $conn->prepare("UPDATE rooms SET status = 'available', guest_id = null WHERE guest_id = ?");
         $roomStmt->bind_param("i", $guest_id);
@@ -42,8 +134,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {
             $_SESSION['success_message'] = "Guest successfully checked out and room marked as available.";
 
             // ✅ Send checkout email
-
-
             try {
                 // Server settings
                 $mail->isSMTP();
@@ -91,9 +181,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {
     exit;
 }
 
-
-
-
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle room assignment
@@ -119,7 +206,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-
     if (isset($_POST['archive'])) {
         $guest_id = $_POST['guest_id'];
 
@@ -127,6 +213,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param("i", $guest_id);
         $stmt->execute();
         $stmt->close();
+    }
+
+    if (isset($_POST['save_charge'])) {
+        $guest_id = $_POST['guest_id'];
+        $description = trim($_POST['charge_description']);
+        $amount = floatval($_POST['charge_amount']);
+        $date = $_POST['charge_date'];
+
+        if (!empty($guest_id) && !empty($description) && $amount >= 0 && !empty($date)) {
+            $stmt = $conn->prepare("INSERT INTO additional_charge (guest_id, description, amount, date) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("isds", $guest_id, $description, $amount, $date);
+            if ($stmt->execute()) {
+                echo "<script>alert('Additional charge saved successfully.');</script>";
+            } else {
+                echo "<script>alert('Failed to save charge.');</script>";
+            }
+        } else {
+            echo "<script>alert('Please fill in all fields correctly.');</script>";
+        }
+    }
+    if (isset($_POST['additional_c_save_charge'])) {
+        $guest_id = intval($_POST['guest_id']);
+        $description = trim($_POST['charge_description']);
+        $amount = floatval($_POST['charge_amount']);
+        $date = $_POST['charge_date'];
+
+        // Debug output
+        echo "<script>
+        alert(
+            'Guest ID: $guest_id\n' +
+            'Description: $description\n' +
+            'Amount: $amount\n' +
+            'Date: $date'
+        );
+        </script>";
+
+        // Basic validation
+        if (!empty($guest_id) && !empty($description) && $amount >= 0 && !empty($date)) {
+            // Prepare insert query
+            $stmt = $conn->prepare("INSERT INTO additional_charge (guest_id, description, amount, date) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("isds", $guest_id, $description, $amount, $date);
+
+            if ($stmt->execute()) {
+                $_SESSION['charge_success'] = "Charge added successfully!";
+            } else {
+                $_SESSION['charge_success'] = "Error saving charge.";
+            }
+
+            $stmt->close();
+
+            // ✅ Redirect to prevent resubmission
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        } else {
+            echo "<script>alert('⚠️ Please fill in all required fields correctly.');</script>";
+        }
     }
 }
 
@@ -140,18 +282,13 @@ $sql = "
 ";
 $result = $conn->query($sql);
 
-
-
 // Fetch available rooms
 $roomQuery = "SELECT room_id FROM rooms WHERE status = 'available'";
 $roomResult = $conn->query($roomQuery);
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
-
 <?php include 'head.php'; ?>
-
 
 <body>
     <!-- Toggle Button -->
@@ -164,7 +301,6 @@ $roomResult = $conn->query($roomQuery);
 
     <!-- Sidebar -->
     <?php include 'sidebar.php'; ?>
-
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -181,10 +317,6 @@ $roomResult = $conn->query($roomQuery);
             </div>
 
             <div class="user-info">
-                <!-- <div class="notification">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge">3</span>
-                </div> -->
                 <img src="https://www.w3schools.com/howto/img_avatar.png" alt="Admin Avatar" class="rounded-circle" width="40" height="40">
                 <div>
                     <div class="fw-bold">
@@ -192,7 +324,6 @@ $roomResult = $conn->query($roomQuery);
                     </div>
                     <div class="text-muted small">Administrator</div>
                 </div>
-
             </div>
         </div>
 
@@ -203,6 +334,14 @@ $roomResult = $conn->query($roomQuery);
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             <?php unset($_SESSION['success_message']); ?>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['charge_success'])): ?>
+            <div class="alert alert-success alert-dismissible fade show">
+                <?php echo $_SESSION['charge_success']; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php unset($_SESSION['charge_success']); ?>
         <?php endif; ?>
 
         <?php if (isset($_SESSION['error_message'])): ?>
@@ -223,12 +362,12 @@ $roomResult = $conn->query($roomQuery);
                     <table id="bookingsTable" class="table table-hover">
                         <thead>
                             <tr>
-                                <!-- <th>Booking ID</th> -->
                                 <th>Guest Name</th>
                                 <th>Check-in Date</th>
                                 <th>Room Type</th>
                                 <th>Status</th>
                                 <th>Assigned Room</th>
+                                <th>Payment Status</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -236,7 +375,6 @@ $roomResult = $conn->query($roomQuery);
                             <?php if ($result && $result->num_rows > 0): ?>
                                 <?php while ($row = $result->fetch_assoc()): ?>
                                     <tr>
-                                        <!-- <td>SHIOJI-<?php echo str_pad($row['guest_id'], 5, '0', STR_PAD_LEFT); ?></td> -->
                                         <td><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
                                         <td><?php echo date('M d, Y', strtotime($row['checkin_date'])); ?></td>
                                         <td><?php echo htmlspecialchars($row['type']); ?></td>
@@ -262,6 +400,15 @@ $roomResult = $conn->query($roomQuery);
                                             <?php endif; ?>
                                         </td>
                                         <td>
+                                            <?php
+                                            $has_unpaid = hasUnpaidBills($row['guest_id'], $conn);
+                                            if ($has_unpaid): ?>
+                                                <span class="badge bg-danger">Unpaid Bills</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-success">Fully Paid</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
                                             <?php if (empty($row['room_id'])): ?>
                                                 <button
                                                     class="btn btn-primary btn-sm assign-btn"
@@ -272,14 +419,39 @@ $roomResult = $conn->query($roomQuery);
                                                     Assign Room
                                                 </button>
                                             <?php else: ?>
-                                                <form action="" method="POST" onsubmit="return confirm('Are you sure you want to check out this guest?');">
-                                                    <input type="hidden" name="email" value="<?php echo htmlspecialchars($row['email']); ?>">
+                                                <?php
+                                                $has_unpaid = hasUnpaidBills($row['guest_id'], $conn);
+                                                ?>
 
-                                                    <input type="hidden" name="guest_id" value="<?php echo htmlspecialchars($row['guest_id']); ?>">
-                                                    <button type="submit" name="check_out" class="btn btn-secondary btn-sm">
+                                                <!-- Check Out Form - Only show if fully paid -->
+                                                <?php if (!$has_unpaid): ?>
+                                                    <form action="" method="POST" onsubmit="return confirm('Are you sure you want to check out this guest?');" style="display:inline;">
+                                                        <input type="hidden" name="email" value="<?php echo htmlspecialchars($row['email']); ?>">
+                                                        <input type="hidden" name="guest_id" value="<?php echo htmlspecialchars($row['guest_id']); ?>">
+                                                        <button type="submit" name="check_out" class="btn btn-secondary btn-sm">
+                                                            <i class="fas fa-door-open"></i> Check Out
+                                                        </button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Guest has unpaid bills">
                                                         <i class="fas fa-door-open"></i> Check Out
                                                     </button>
-                                                </form>
+                                                <?php endif; ?>
+
+                                                <!-- ✅ Additional Charge Button (Triggers Modal) -->
+                                                <button type="button" class="btn btn-warning btn-sm additional-charge-btn" data-bs-toggle="modal" data-bs-target="#addChargeModal"
+                                                    data-guest-id="<?php echo htmlspecialchars($row['guest_id']); ?>"
+                                                    data-guest-name="<?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?>">
+                                                    <i class="fas fa-plus-circle"></i> Additional Charge
+                                                </button>
+
+                                                <button type="button" class="btn btn-info btn-sm view-incident-btn"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#viewIncidentModal"
+                                                    data-guest-id="<?php echo htmlspecialchars($row['guest_id']); ?>"
+                                                    data-guest-name="<?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?>">
+                                                    <i class="fas fa-exclamation-circle"></i> View Incident
+                                                </button>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -291,12 +463,9 @@ $roomResult = $conn->query($roomQuery);
                             <?php endif; ?>
                         </tbody>
                     </table>
-
                 </div>
             </div>
         </div>
-
-
 
         <div class="card mt-4">
             <div class="card-header">
@@ -368,10 +537,94 @@ $roomResult = $conn->query($roomQuery);
                 </div>
             </div>
         </div>
+    </div>
 
+    <!-- ✅ View Incident Modal (Single instance) -->
+    <div class="modal fade" id="viewIncidentModal" tabindex="-1" aria-labelledby="viewIncidentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewIncidentModalLabel">View Additional Charges</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
 
+                <div class="modal-body">
+                    <input type="hidden" id="incidentGuestId">
+                    <h6>Guest: <span id="incidentGuestName"></span></h6>
+                    <hr>
 
+                    <!-- Table for Additional Charges -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered text-center align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount (₱)</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidentTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-muted">No records found.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
+                    <!-- Pagination Controls -->
+                    <nav>
+                        <ul class="pagination justify-content-center" id="incidentPagination"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ Additional Charge Modal (Single instance) -->
+    <div class="modal fade" id="addChargeModal" tabindex="-1" aria-labelledby="addChargeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addChargeModalLabel">Add Additional Charge</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <input type="hidden" name="guest_id" id="modalGuestId">
+
+                        <!-- Guest Name Field (UNCOMMENTED) -->
+                        <div class="mb-3">
+                            <label class="form-label">Guest Name</label>
+                            <input type="text" id="modalGuestName" class="form-control" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <input type="text" class="form-control" name="charge_description" placeholder="Enter description" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Amount (₱)</label>
+                            <input type="number" class="form-control" name="charge_amount" step="0.01" min="0" placeholder="Enter amount" required>
+                        </div>
+
+                        <!-- ✅ Date Field -->
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" class="form-control" name="charge_date" id="chargeDate" required>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" name="additional_c_save_charge" class="btn btn-primary">Save Charge</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- Assign Room Modal -->
@@ -423,7 +676,6 @@ $roomResult = $conn->query($roomQuery);
         </div>
     </div>
 
-
     <script src="../node_modules/jquery/dist/jquery.min.js"></script>
     <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../node_modules/datatables.net/js/dataTables.min.js"></script>
@@ -450,7 +702,6 @@ $roomResult = $conn->query($roomQuery);
                 ]
             });
 
-
             // Handle assign button click
             $('.assign-btn').on('click', function() {
                 const bookId = $(this).data('book-id');
@@ -458,6 +709,105 @@ $roomResult = $conn->query($roomQuery);
 
                 $('#modalBookId').val(bookId);
                 $('#guestName').val(guestName);
+            });
+
+            // ✅ Handle additional charge button click
+            $(document).on('click', '.additional-charge-btn', function() {
+                const guestId = $(this).data('guest-id');
+                const guestName = $(this).data('guest-name');
+
+                console.log('Setting guest data:', guestId, guestName); // Debug log
+
+                $('#modalGuestId').val(guestId);
+                $('#modalGuestName').val(guestName);
+
+                // ✅ Auto-fill today's date in the date input
+                const today = new Date().toISOString().split('T')[0];
+                $('#chargeDate').val(today);
+            });
+
+            // ✅ Handle view incident modal
+            $(document).on('click', '.view-incident-btn', function() {
+                const guestId = $(this).data('guest-id');
+                const guestName = $(this).data('guest-name');
+
+                $('#incidentGuestId').val(guestId);
+                $('#incidentGuestName').text(guestName);
+
+                // Fetch incidents (additional charges) via AJAX
+                fetch('fetch_incidents.php?guest_id=' + guestId)
+                    .then(response => response.json())
+                    .then(data => {
+                        const tbody = $('#incidentTableBody');
+                        const pagination = $('#incidentPagination');
+                        tbody.empty();
+                        pagination.empty();
+
+                        console.log('Raw data from server:', data); // Debug log
+
+                        if (data.length === 0) {
+                            tbody.html('<tr><td colspan="5" class="text-muted">No additional charges found.</td></tr>');
+                            return;
+                        }
+
+                        const perPage = 5;
+                        let currentPage = 1;
+
+                        function renderPage(page) {
+                            tbody.empty();
+                            const start = (page - 1) * perPage;
+                            const end = start + perPage;
+                            const pageData = data.slice(start, end);
+
+                            pageData.forEach((row, index) => {
+                                // FIXED: Properly check if paid is 1 (using parseInt for safety)
+                                const isPaid = parseInt(row.paid) === 1;
+                                console.log('Row:', row, 'isPaid:', isPaid); // Debug log
+
+                                const statusBadge = isPaid ?
+                                    '<span class="badge bg-success">Paid</span>' :
+                                    '<span class="badge bg-danger">Unpaid</span>';
+
+                                tbody.append(`
+                                    <tr>
+                                        <td>${start + index + 1}</td>
+                                        <td>${row.date}</td>
+                                        <td>${row.description}</td>
+                                        <td>₱${parseFloat(row.amount).toFixed(2)}</td>
+                                        <td>${statusBadge}</td>
+                                    </tr>
+                                `);
+                            });
+
+                            renderPagination(page);
+                        }
+
+                        function renderPagination(page) {
+                            pagination.empty();
+                            const totalPages = Math.ceil(data.length / perPage);
+
+                            for (let i = 1; i <= totalPages; i++) {
+                                pagination.append(`
+                                    <li class="page-item ${i === page ? 'active' : ''}">
+                                        <button class="page-link">${i}</button>
+                                    </li>
+                                `);
+                            }
+
+                            pagination.find('.page-link').each(function(i, btn) {
+                                $(btn).on('click', function() {
+                                    currentPage = i + 1;
+                                    renderPage(currentPage);
+                                });
+                            });
+                        }
+
+                        renderPage(1);
+                    })
+                    .catch(err => {
+                        console.error('Error fetching incidents:', err);
+                        $('#incidentTableBody').html('<tr><td colspan="5" class="text-danger">Error loading data.</td></tr>');
+                    });
             });
 
             // Handle sidebar toggle

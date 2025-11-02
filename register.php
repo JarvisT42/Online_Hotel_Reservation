@@ -9,7 +9,6 @@ include 'connect.php'; // DB connection
 $error = '';
 $success = '';
 
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['next_step'])) {
         // Step 1: Check email
@@ -26,24 +25,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (strlen($password) < 8) {
             $error = "Password must be at least 8 characters long.";
         } else {
-            // Check if email exists
+            // Check if email exists in guests table
             $stmt = $conn->prepare("SELECT * FROM guests WHERE email = ?");
             $stmt->bind_param("s", $email);
             $stmt->execute();
             $result = $stmt->get_result();
 
-            $guestData = null;
-            if ($result->num_rows > 0) {
+            if ($result->num_rows === 0) {
+                // Email not found in guests
+                $error = "Not a customer or no email where booked yet.";
+            } else {
+                // Email exists — proceed
                 $guestData = $result->fetch_assoc();
+
+                // Save step1 info to session
+                $_SESSION['step1_email'] = $email;
+                $_SESSION['step1_password'] = password_hash($password, PASSWORD_DEFAULT);
+                $_SESSION['step1_guest'] = $guestData;
+
+                // Tell frontend to move to step2
+                $showStep2 = true;
             }
 
-            // Save step1 info to session
-            $_SESSION['step1_email'] = $email;
-            $_SESSION['step1_password'] = password_hash($password, PASSWORD_DEFAULT);
-            $_SESSION['step1_guest'] = $guestData;
-
-            // Tell frontend to move to step2
-            $showStep2 = true;
+            $stmt->close();
         }
     } elseif (isset($_POST['final_register'])) {
         // Step 2: Save guest info
@@ -53,35 +57,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = $_SESSION['step1_email'];
         $hashed_password = $_SESSION['step1_password'];
 
-        // If guest exists → update
-        if ($_SESSION['step1_guest']) {
-            $guest_id = $_SESSION['step1_guest']['guest_id'];
-            $stmt = $conn->prepare("UPDATE guests SET first_name=?, last_name=?, phone=?, password=? WHERE guest_id=?");
-            $stmt->bind_param("ssssi", $first_name, $last_name, $phone, $hashed_password, $guest_id);
-            $stmt->execute();
-            $_SESSION['guest_id'] = $guest_id;
+        // Validate step 2 data
+        if (empty($first_name) || empty($last_name) || empty($phone)) {
+            $error = "Please fill in all personal information fields.";
+            $showStep2 = true; // Show step 2 again
         } else {
-            // New guest
-            $status = "checked_out";
-            $stmt = $conn->prepare("INSERT INTO guests (first_name, last_name, phone, email, status, password) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssss", $first_name, $last_name, $phone, $email, $status, $hashed_password);
-            $stmt->execute();
-            $_SESSION['guest_id'] = $conn->insert_id;
-        }
+            // If guest exists → update
+            if ($_SESSION['step1_guest']) {
+                $guest_id = $_SESSION['step1_guest']['guest_id'];
+                $stmt = $conn->prepare("UPDATE guests SET first_name=?, last_name=?, phone=?, password=? WHERE guest_id=?");
+                $stmt->bind_param("ssssi", $first_name, $last_name, $phone, $hashed_password, $guest_id);
+                if ($stmt->execute()) {
+                    $_SESSION['guest_id'] = $guest_id;
+                    $_SESSION['guest_logged_in'] = true;
+                    $_SESSION['guest_email'] = $email;
+                    $_SESSION['first_name'] = $first_name;
+                    $_SESSION['last_name']  = $last_name;
 
-        $_SESSION['guest_logged_in'] = true;
-        $_SESSION['guest_email'] = $email;
-        $_SESSION['first_name'] = $first_name;
-        $_SESSION['last_name']  = $last_name;
-        header("Location: guest/dashboard.php");
-        exit;
+                    // Clear session data
+                    unset($_SESSION['step1_email']);
+                    unset($_SESSION['step1_password']);
+                    unset($_SESSION['step1_guest']);
+
+                    header("Location: guest/dashboard.php");
+                    exit;
+                } else {
+                    $error = "Error updating account: " . $stmt->error;
+                    $showStep2 = true;
+                }
+            } else {
+                // New guest
+                $status = "checked_out";
+                $stmt = $conn->prepare("INSERT INTO guests (first_name, last_name, phone, email, status, password) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("ssssss", $first_name, $last_name, $phone, $email, $status, $hashed_password);
+                if ($stmt->execute()) {
+                    $_SESSION['guest_id'] = $conn->insert_id;
+                    $_SESSION['guest_logged_in'] = true;
+                    $_SESSION['guest_email'] = $email;
+                    $_SESSION['first_name'] = $first_name;
+                    $_SESSION['last_name']  = $last_name;
+
+                    // Clear session data
+                    unset($_SESSION['step1_email']);
+                    unset($_SESSION['step1_password']);
+                    unset($_SESSION['step1_guest']);
+
+                    header("Location: guest/dashboard.php");
+                    exit;
+                } else {
+                    $error = "Error creating account: " . $stmt->error;
+                    $showStep2 = true;
+                }
+            }
+            $stmt->close();
+        }
     }
 }
-
-
-
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -91,7 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHIOJI APARTELLE - Admin Registration</title>
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css"> <!-- Google Fonts -->
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -520,10 +553,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <i class="fas fa-eye toggle-password" data-target="password"
                         style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color:#2a5d8a;"></i>
                     <div class="error-message" id="password-error" style="display:none; color:red;">Password must be at least 8 characters</div>
-
                 </div>
-                <p> Password must be at least 8 characters
-                </p>
+                <p> Password must be at least 8 characters</p>
+
                 <div class="form-group" style="position: relative;">
                     <i class="fas fa-lock input-icon"></i>
                     <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
@@ -531,7 +563,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color:#2a5d8a;"></i>
                     <div class="error-message" id="confirm-password-error" style="display:none; color:red;">Passwords do not match</div>
                 </div>
-
 
                 <button type="submit" name="next_step" class="btn-register">
                     Next
@@ -541,18 +572,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php $guest = $_SESSION['step1_guest'] ?? null; ?>
                 <div class="form-group">
                     <i class="fas fa-user input-icon"></i>
-                    <input type="text" class="form-control" name="first_name" placeholder="First Name" disabled
-                        value="<?php echo htmlspecialchars($guest['first_name'] ?? ''); ?>" required>
+                    <input type="text" class="form-control readonly-field" name="first_name" placeholder="First Name"
+                        value="<?php echo htmlspecialchars($guest['first_name'] ?? ''); ?>" required readonly>
                 </div>
                 <div class="form-group">
                     <i class="fas fa-user input-icon"></i>
-                    <input type="text" class="form-control" name="last_name" placeholder="Last Name" disabled
-                        value="<?php echo htmlspecialchars($guest['last_name'] ?? ''); ?>" required>
+                    <input type="text" class="form-control readonly-field" name="last_name" placeholder="Last Name"
+                        value="<?php echo htmlspecialchars($guest['last_name'] ?? ''); ?>" required readonly>
                 </div>
                 <div class="form-group">
                     <i class="fas fa-phone input-icon"></i>
-                    <input type="number" class="form-control" name="phone" placeholder="Phone Number" disabled
-                        value="<?php echo htmlspecialchars($guest['phone'] ?? ''); ?>" required>
+                    <input type="tel" class="form-control readonly-field" name="phone" placeholder="Phone Number"
+                        value="<?php echo htmlspecialchars($guest['phone'] ?? ''); ?>" required readonly>
                 </div>
 
                 <button type="submit" name="final_register" class="btn-register">
@@ -561,87 +592,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
         </form>
 
-
-
-
         <div class="login-link">
             Already have an account? <a href="login.php">Login here</a>
         </div>
     </div>
 
-
-
-
     <script>
-        document.getElementById('registrationForm').addEventListener('submit', function(e) {
-            // Clear previous errors
-            const errorElements = document.querySelectorAll('.error-message');
-            errorElements.forEach(el => el.style.display = 'none');
-
-            let isValid = true;
-
-            const name = document.getElementById('name').value.trim();
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            const confirmPassword = document.getElementById('confirm_password').value.trim();
-
-            // Validate name
-            if (!name) {
-                document.getElementById('name-error').style.display = 'block';
-                isValid = false;
-            }
-
-            // Validate username
-            if (!username) {
-                document.getElementById('username-error').style.display = 'block';
-                isValid = false;
-            }
-
-            // Validate password
-            if (!password || password.length < 8) {
-                document.getElementById('password-error').style.display = 'block';
-                isValid = false;
-            }
-
-            // Validate confirm password
-            if (password !== confirmPassword) {
-                document.getElementById('confirm-password-error').style.display = 'block';
-                isValid = false;
-            }
-
-            if (!isValid) {
-                e.preventDefault(); // Prevent form submit if invalid
-            } else {
-                // Optionally disable button to prevent multiple submits
-                this.querySelector('.btn-register').disabled = true;
-                this.querySelector('.btn-register').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Registering...';
-            }
-        });
-
-        // Add focus effects to form inputs
-        const inputs = document.querySelectorAll('.form-control');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                this.parentElement.querySelector('.input-icon').style.color = '#d74e09';
-            });
-
-            input.addEventListener('blur', function() {
-                this.parentElement.querySelector('.input-icon').style.color = '#2a5d8a';
-            });
-        });
-
-        // Real-time password confirmation validation
-        const passwordInput = document.getElementById('password');
-        const confirmPasswordInput = document.getElementById('confirm_password');
-
-        confirmPasswordInput.addEventListener('input', function() {
-            if (passwordInput.value !== this.value) {
-                document.getElementById('confirm-password-error').style.display = 'block';
-            } else {
-                document.getElementById('confirm-password-error').style.display = 'none';
-            }
-        });
-
+        // Password toggle functionality
         document.querySelectorAll('.toggle-password').forEach(icon => {
             icon.addEventListener('click', function() {
                 const targetId = this.getAttribute('data-target');
@@ -655,6 +612,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 this.classList.toggle('fa-eye-slash');
             });
         });
+
+        // Real-time password confirmation validation
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+
+        if (passwordInput && confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', function() {
+                if (passwordInput.value !== this.value) {
+                    document.getElementById('confirm-password-error').style.display = 'block';
+                } else {
+                    document.getElementById('confirm-password-error').style.display = 'none';
+                }
+            });
+
+            passwordInput.addEventListener('input', function() {
+                if (this.value.length < 8) {
+                    document.getElementById('password-error').style.display = 'block';
+                } else {
+                    document.getElementById('password-error').style.display = 'none';
+                }
+
+                // Also check confirm password when password changes
+                if (passwordInput.value !== confirmPasswordInput.value) {
+                    document.getElementById('confirm-password-error').style.display = 'block';
+                } else {
+                    document.getElementById('confirm-password-error').style.display = 'none';
+                }
+            });
+        }
     </script>
 </body>
 

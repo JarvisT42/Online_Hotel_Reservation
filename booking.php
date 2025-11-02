@@ -270,8 +270,19 @@ if (isset($_GET['book_success']) && $_GET['book_success'] == 1 && isset($_GET['b
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="phone" class="form-label">Phone Number</label>
-                                <input type="number" class="form-control" id="phone" required>
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="phone"
+                                    name="phone"
+                                    pattern="[0-9]{11}"
+                                    maxlength="11"
+                                    minlength="11"
+                                    required
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                <div class="invalid-feedback">Please enter exactly 11 digits.</div>
                             </div>
+
 
 
 

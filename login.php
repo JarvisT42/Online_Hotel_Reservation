@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: admin/dashboard.php");
             exit;
         } else {
-            $error = "Invalid email or password.";
+            $error = "Invalid email or password.asd";
         }
     } else {
         // 2. Check in GUEST table

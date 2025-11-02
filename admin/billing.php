@@ -1,27 +1,59 @@
 <?php
 session_start();
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 if (!isset($_SESSION['admin_logged_in'])) {
     header("Location: ../login.php");
     exit;
 }
 
 include '../connect.php';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['pay'])) {
         include '../connect.php';
 
         $guest_id = $_POST['guest_id'];
         $bill_month = $_POST['bill_month'];
-        $additional_charges = $_POST['description'];
-        $amount = (float) $_POST['amount'];
+        $days = $_POST['days'];
 
-        // Clean up the total amount (remove peso symbol and commas)
+        // Clean up the amounts (remove peso symbol and commas)
+        $room_charge_raw = $_POST['room_charge'];
+        $room_charge = floatval(preg_replace('/[^\d.]/', '', $room_charge_raw));
+
         $total_amount_raw = $_POST['total_amount'];
         $total_amount = floatval(preg_replace('/[^\d.]/', '', $total_amount_raw));
 
-        $paid = 1; // assuming is_paid is a boolean/int in DB
+        // Validate inputs
+        if ($room_charge <= 0) {
+            $_SESSION['error_message'] = "Invalid room charge amount.";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit;
+        }
 
-        // Get room price via guest_id
+        if ($days < 1 || $days > 31) {
+            $_SESSION['error_message'] = "Invalid number of days.";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit;
+        }
+
+        // Check for duplicate billing
+        $duplicate_check = $conn->prepare("SELECT transaction_id FROM transactions WHERE guest_id = ? AND bill_month = ?");
+        $duplicate_check->bind_param("is", $guest_id, $bill_month);
+        $duplicate_check->execute();
+        $duplicate_result = $duplicate_check->get_result();
+
+        if ($duplicate_result->num_rows > 0) {
+            $_SESSION['error_message'] = "Bill already exists for this guest and month.";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit;
+        }
+
+        $paid = 1;
+
+        // Get room price via guest_id with validation
         $stmt = $conn->prepare("SELECT room_type_id, room_id FROM rooms WHERE guest_id = ?");
         $stmt->bind_param("i", $guest_id);
         $stmt->execute();
@@ -30,27 +62,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($row = $result->fetch_assoc()) {
             $room_id = $row['room_id'];
             $room_type_id = $row['room_type_id'];
+
+            // Validate guest is actually assigned to this room
+            $validate_guest = $conn->prepare("SELECT guest_id FROM rooms WHERE guest_id = ? AND room_id = ?");
+            $validate_guest->bind_param("ii", $guest_id, $room_id);
+            $validate_guest->execute();
+            $validation_result = $validate_guest->get_result();
+
+            if ($validation_result->num_rows === 0) {
+                $_SESSION['error_message'] = "Guest is not assigned to this room.";
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit;
+            }
+        } else {
+            $_SESSION['error_message'] = "Guest is not assigned to any room.";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit;
         }
 
         // Insert into transactions
         $stmt = $conn->prepare("
             INSERT INTO transactions 
-            (guest_id, room_id, room_type_id, bill_month, description, amount, total_amount, is_paid) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (guest_id, room_id, room_type_id, bill_month, room_charge, total_amount, is_paid) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->bind_param(
-            "iiissddi",
+            "iiisddi",
             $guest_id,
             $room_id,
             $room_type_id,
             $bill_month,
-            $additional_charges,
-            $amount,
+            $room_charge,
             $total_amount,
             $paid
         );
 
         if ($stmt->execute()) {
+            // Mark additional charges as paid
+            $transaction_id = $stmt->insert_id;
+
+            if (isset($_POST['incident_charges']) && !empty($_POST['incident_charges'])) {
+                $incident_ids = $_POST['incident_charges'];
+                $placeholders = str_repeat('?,', count($incident_ids) - 1) . '?';
+
+                $sql_update = "UPDATE additional_charge SET paid = 1, transaction_id = ? WHERE id IN ($placeholders)";
+                $stmt_update = $conn->prepare($sql_update);
+
+                $params = array_merge([$transaction_id], $incident_ids);
+                $types = 'i' . str_repeat('i', count($incident_ids));
+
+                $stmt_update->bind_param($types, ...$params);
+                $stmt_update->execute();
+            }
+
             $_SESSION['success_message'] = "Bill successfully recorded.";
         } else {
             $_SESSION['error_message'] = "Error saving bill: " . $stmt->error;
@@ -61,9 +125,125 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// FIXED: Function to get unpaid months for CURRENT stay only
+function getUnpaidMonthsgg($guest_id, $conn)
+{
+    $unpaidMonths = [];
 
+    // Get current check-in date for this specific stay
+    $checkin_sql = "SELECT checkin_date, checkout_date FROM guests WHERE guest_id = ? AND status = 'checked_in'";
+    $stmt_check = $conn->prepare($checkin_sql);
+    $stmt_check->bind_param("i", $guest_id);
+    $stmt_check->execute();
+    $result_check = $stmt_check->get_result();
+    $guest_data = $result_check->fetch_assoc();
+    $stmt_check->close();
 
+    if (!$guest_data) {
+        return $unpaidMonths; // Guest not found or not checked in
+    }
 
+    $current_checkin = $guest_data['checkin_date'];
+
+    // If guest is checked out, use checkout_date as end date, otherwise use current date
+    $end_date = $guest_data['checkout_date'] ? $guest_data['checkout_date'] : date('Y-m-d');
+
+    $start = new DateTime($current_checkin);
+    $start->modify('first day of this month');
+
+    $now = new DateTime($end_date);
+    $now->modify('first day of this month');
+
+    while ($start <= $now) {
+        $billMonth = $start->format('Y-m');
+
+        // Check if transaction exists for this month AND is from current stay period
+        $stmt = $conn->prepare("
+            SELECT 1 FROM transactions 
+            WHERE guest_id = ? AND bill_month = ? 
+            AND transaction_date >= ?
+        ");
+        $stmt->bind_param("iss", $guest_id, $billMonth, $current_checkin);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows === 0) {
+            $unpaidMonths[] = [
+                'value' => $billMonth,
+                'label' => $start->format('F Y'),
+                'days_in_month' => $start->format('t'),
+                'checkin_date' => $current_checkin
+            ];
+        }
+        $stmt->close();
+        $start->modify('+1 month');
+    }
+    return $unpaidMonths;
+}
+
+// Fixed calculateActualDays function
+function calculateActualDays($checkinDate, $billMonth)
+{
+    $checkin = new DateTime($checkinDate);
+    $billStart = new DateTime($billMonth . '-01');
+    $billEnd = new DateTime($billMonth . '-01');
+    $billEnd->modify('last day of this month');
+
+    // If check-in is after the bill month, return 0
+    if ($checkin > $billEnd) {
+        return 0;
+    }
+
+    // If check-in is before bill month, use bill start
+    if ($checkin < $billStart) {
+        $startDate = $billStart;
+    } else {
+        $startDate = $checkin;
+    }
+
+    // Calculate days (inclusive)
+    $interval = $startDate->diff($billEnd);
+    $days = $interval->days + 1;
+
+    // Ensure days don't exceed month length
+    $daysInMonth = $billEnd->format('d');
+    return min($days, $daysInMonth);
+}
+
+// FIXED: Function to get unpaid incident charges for CURRENT stay only
+function getUnpaidIncidentCharges($guestId, $conn)
+{
+    $charges = [];
+
+    // Get current check-in date
+    $checkin_sql = "SELECT checkin_date FROM guests WHERE guest_id = ? AND status = 'checked_in'";
+    $stmt_check = $conn->prepare($checkin_sql);
+    $stmt_check->bind_param("i", $guestId);
+    $stmt_check->execute();
+    $result_check = $stmt_check->get_result();
+    $guest_data = $result_check->fetch_assoc();
+    $stmt_check->close();
+
+    if (!$guest_data) {
+        return $charges;
+    }
+
+    $current_checkin = $guest_data['checkin_date'];
+
+    $stmt = $conn->prepare("
+        SELECT id, description, date, amount 
+        FROM additional_charge 
+        WHERE guest_id = ? AND paid = 0 AND date >= ?
+    ");
+    $stmt->bind_param("is", $guestId, $current_checkin);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $charges[] = $row;
+    }
+    return $charges;
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -74,9 +254,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="main-content">
         <div class="topbar">
-            <h4>Generate New Bill</h4>
+            <h4>Generate New Bill (Monthly)</h4>
         </div>
-
 
         <?php if (isset($_SESSION['success_message'])): ?>
             <div class="alert alert-success alert-dismissible fade show">
@@ -86,82 +265,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php unset($_SESSION['success_message']); ?>
         <?php endif; ?>
 
-
-        <!-- Summary Boxes with Icons -->
-        <!-- <div class="row mb-4">
-            <div class="col-md-6">
-                <?php
-                // Assume $conn is your active mysqli connection
-                $sql = "SELECT
-                g.guest_id,
-                g.first_name,
-                g.last_name,
-                g.checkin_date,
-                r.room_id,
-                rt.type AS room_type
-                FROM guests g
-                LEFT JOIN rooms r ON g.room_id = r.room_id
-                LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
-                WHERE g.checkin_date IS NOT NULL
-                ORDER BY g.checkin_date DESC";
-
-                $result = $conn->query($sql);
-                $total_bills = $result->num_rows;
-                ?>
-
-             
-
-        </div> -->
+        <?php if (isset($_SESSION['error_message'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show">
+                <?php echo $_SESSION['error_message']; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php unset($_SESSION['error_message']); ?>
+        <?php endif; ?>
 
         <!-- Billing Form -->
         <div class="card shadow-sm p-4 mb-4">
             <?php
             // Fetch guest + room data
             $sql = "
-    SELECT 
-        guests.guest_id, 
-        guests.first_name, 
-        guests.last_name, 
-        room_types.type AS room_type, 
-        room_types.price,
-        guests.checkin_date
-    FROM guests
-    LEFT JOIN rooms ON guests.room_id = rooms.room_id
-    LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
-    WHERE guests.status = 'checked_in'
-";
+                SELECT 
+                    guests.guest_id, 
+                    guests.first_name, 
+                    guests.last_name, 
+                    room_types.type AS room_type, 
+                    room_types.price,
+                    guests.checkin_date
+                FROM guests
+                LEFT JOIN rooms ON guests.room_id = rooms.room_id
+                LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
+                WHERE guests.status = 'checked_in'
+            ";
             $result = $conn->query($sql);
 
             $guestData = [];
             $optionsHtml = [];
-
-
-            function getUnpaidMonthsgg($checkinDate, $guestId, $conn)
-            {
-                $unpaidMonths = [];
-                $start = new DateTime($checkinDate);
-                $start->modify('first day of this month');
-
-                $now = new DateTime();
-                $now->modify('first day of this month');
-
-                while ($start <= $now) {
-                    $billMonth = $start->format('Y-m');
-                    $stmt = $conn->prepare("SELECT 1 FROM transactions WHERE guest_id = ? AND bill_month = ?");
-                    $stmt->bind_param("is", $guestId, $billMonth);
-                    $stmt->execute();
-                    $stmt->store_result();
-
-                    if ($stmt->num_rows === 0) {
-                        $unpaidMonths[] = [
-                            'value' => $billMonth,
-                            'label' => $start->format('F Y')
-                        ];
-                    }
-                    $start->modify('+1 month');
-                }
-                return $unpaidMonths;
-            }
 
             if ($result && $result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
@@ -170,12 +302,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $roomType = htmlspecialchars($row['room_type'] ?? 'N/A');
                     $price = isset($row['price']) ? number_format($row['price'], 2) : '0.00';
 
-                    $unpaid = getUnpaidMonthsgg($row['checkin_date'], $guestId, $conn);
+                    // FIXED: Pass guest_id and connection only
+                    $unpaid = getUnpaidMonthsgg($guestId, $conn);
+                    $incidentCharges = getUnpaidIncidentCharges($guestId, $conn);
 
                     $guestData[$guestId] = [
                         'room_type' => $roomType,
                         'price' => $price,
-                        'unpaid_months' => $unpaid
+                        'unpaid_months' => $unpaid,
+                        'incident_charges' => $incidentCharges,
+                        'checkin_date' => $row['checkin_date']
                     ];
 
                     $optionsHtml[] = "<option value='{$guestId}'>{$guestName}</option>";
@@ -183,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             ?>
 
-            <form method="POST" action="">
+            <form method="POST" action="" id="billingForm">
                 <div class="row">
                     <!-- Select Guest -->
                     <div class="mb-3 col-md-6">
@@ -199,10 +335,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="form-label">Room Type & Price</label>
                         <input type="text" class="form-control" id="roomInfo" readonly>
                         <input type="hidden" name="room_price" id="roomPrice">
+                        <input type="hidden" id="checkinDate" value="">
                     </div>
                 </div>
 
-                <!-- Unpaid Months Dropdown -->
                 <!-- Unpaid Months Dropdown + Days Input -->
                 <div class="row">
                     <div class="mb-3 col-md-6">
@@ -212,35 +348,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </select>
                     </div>
 
-                    <!-- Room Type Info -->
                     <div class="mb-3 col-md-6">
-                        <small class="form-label">Days</small>
-                        <input type="number" class="form-control" name="days" id="daysInput" min="1" value="0" required>
-
+                        <label class="form-label">Days</label>
+                        <input type="number" class="form-control" name="days" id="daysInput" min="1" max="31" value="0" required readonly>
+                        <small class="form-text text-muted" id="daysExplanation"></small>
                     </div>
-
-
-
-
-
-
                 </div>
 
+                <!-- Room Amount Calculation -->
+                <div class="mb-3">
+                    <label class="form-label">Room Amount</label>
+                    <input type="text" class="form-control" name="room_charge" id="roomAmount" readonly placeholder="Room price × days">
+                </div>
 
-
-
-
-
-                <!-- Additional Charges -->
-                <div class="mb-4">
-                    <h5>Additional Charges</h5>
-                    <div class="service-item row mb-2">
-                        <div class="col-md-6">
-                            <input type="text" class="form-control" name="description" placeholder="Description">
-                        </div>
-                        <div class="col-md-4">
-                            <input type="number" class="form-control" name="amount" id="additionalAmount" placeholder="Amount" step="0.01" min="0">
-                        </div>
+                <!-- Incident Charges Section -->
+                <div class="mb-4" id="incidentChargesSection" style="display: none;">
+                    <h5>Unpaid Incident Charges</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Include</th>
+                                    <th>Description</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidentChargesBody">
+                                <!-- Incident charges will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -253,9 +390,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button type="submit" name="pay" class="btn btn-primary">Pay Bill</button>
             </form>
 
-
             <script>
                 const guestData = <?= json_encode($guestData) ?>;
+
+                // Function to calculate actual days stayed
+                function calculateActualDays(checkinDate, billMonth) {
+                    const checkin = new Date(checkinDate);
+                    const billStart = new Date(billMonth + '-01');
+                    const billEnd = new Date(billStart.getFullYear(), billStart.getMonth() + 1, 0);
+
+                    // If check-in is after bill month, return 0
+                    if (checkin > billEnd) return 0;
+
+                    let startDate = checkin;
+                    if (checkin < billStart) {
+                        startDate = billStart;
+                    }
+
+                    // Calculate difference in days (inclusive)
+                    const timeDiff = billEnd.getTime() - startDate.getTime();
+                    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                    // Don't exceed month length
+                    const daysInMonth = billEnd.getDate();
+                    return Math.min(daysDiff, daysInMonth);
+                }
 
                 document.getElementById('guestSelect').addEventListener('change', function() {
                     const selectedId = this.value;
@@ -263,123 +422,221 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     const monthSelect = document.getElementById('billMonthSelect');
                     const roomPriceInput = document.getElementById('roomPrice');
                     const daysInput = document.getElementById('daysInput');
+                    const checkinDateInput = document.getElementById('checkinDate');
+                    const incidentSection = document.getElementById('incidentChargesSection');
+                    const incidentBody = document.getElementById('incidentChargesBody');
+                    const daysExplanation = document.getElementById('daysExplanation');
 
-                    // Reset month dropdown
+                    // Reset fields
                     monthSelect.innerHTML = '<option value="">-- Select Month --</option>';
                     daysInput.value = 0;
+                    daysInput.setAttribute('readonly', true);
+                    daysExplanation.textContent = '';
+                    incidentBody.innerHTML = '';
+                    incidentSection.style.display = 'none';
 
                     if (guestData[selectedId]) {
                         const price = parseFloat(guestData[selectedId].price.replace(/,/g, '')) || 0;
+                        const checkinDate = guestData[selectedId].checkin_date;
 
-                        // Display in room info
+                        // Display room info
                         roomInfo.value = `${guestData[selectedId].room_type} (₱${guestData[selectedId].price}/day)`;
-
-                        // Store numeric daily price
                         roomPriceInput.value = price;
+                        checkinDateInput.value = checkinDate;
 
                         // Populate unpaid months
                         guestData[selectedId].unpaid_months.forEach(month => {
                             const opt = document.createElement('option');
                             opt.value = month.value;
                             opt.textContent = month.label;
+                            opt.setAttribute('data-days-in-month', month.days_in_month);
                             monthSelect.appendChild(opt);
                         });
+
+                        // Populate incident charges
+                        const incidentCharges = guestData[selectedId].incident_charges || [];
+                        if (incidentCharges.length > 0) {
+                            incidentSection.style.display = 'block';
+                            incidentCharges.forEach(charge => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>
+                                        <input type="checkbox" name="incident_charges[]" value="${charge.id}" 
+                                               class="incident-checkbox" data-amount="${charge.amount}" checked>
+                                    </td>
+                                    <td>${charge.description}</td>
+                                    <td>${charge.date}</td>
+                                    <td>₱${parseFloat(charge.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                `;
+                                incidentBody.appendChild(row);
+                            });
+                        }
 
                         updateTotal();
                     } else {
                         roomInfo.value = '';
                         roomPriceInput.value = '';
+                        checkinDateInput.value = '';
                         daysInput.value = 0;
+                        daysExplanation.textContent = '';
                         updateTotal();
                     }
                 });
 
-                document.getElementById('additionalAmount').addEventListener('input', updateTotal);
                 document.getElementById('billMonthSelect').addEventListener('change', function() {
+                    const selectedId = document.getElementById('guestSelect').value;
                     const monthValue = this.value;
                     const daysInput = document.getElementById('daysInput');
+                    const checkinDate = document.getElementById('checkinDate').value;
+                    const daysExplanation = document.getElementById('daysExplanation');
 
-                    if (monthValue) {
-                        const [year, month] = monthValue.split('-').map(Number);
-                        const daysInMonth = new Date(year, month, 0).getDate();
-                        daysInput.value = daysInMonth; // ✅ default full month days
+                    if (monthValue && selectedId && checkinDate) {
+                        const actualDays = calculateActualDays(checkinDate, monthValue);
+
+                        // Get current month for comparison
+                        const currentDate = new Date();
+                        const currentYearMonth = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
+                        const isCurrentMonth = (monthValue === currentYearMonth);
+
+                        // Get days in selected month
+                        const selectedDate = new Date(monthValue + '-01');
+                        const daysInSelectedMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+                        const hasFullMonth = (actualDays >= daysInSelectedMonth);
+
+                        if (isCurrentMonth && !hasFullMonth) {
+                            // Current month, guest hasn't stayed full month - allow editing
+                            daysInput.removeAttribute('readonly');
+                            daysInput.value = actualDays;
+                            daysExplanation.textContent = `Check-in Date: ${checkinDate}. Adjustable as guest hasn't stayed full month.`;
+                        } else {
+                            // Past month OR current month with full stay - readonly
+                            daysInput.setAttribute('readonly', true);
+                            daysInput.value = actualDays;
+                            if (isCurrentMonth && hasFullMonth) {
+                                daysExplanation.textContent = `Check-in Date: ${checkinDate}. Fixed - guest stayed full month.`;
+                            } else {
+                                daysExplanation.textContent = `Check-in Date: ${checkinDate}. Fixed for past months.`;
+                            }
+                        }
                     } else {
                         daysInput.value = 0;
+                        daysInput.setAttribute('readonly', true);
+                        daysExplanation.textContent = '';
                     }
                     updateTotal();
                 });
-                document.getElementById('daysInput').addEventListener('input', updateTotal);
+
+                // Prevent invalid day values
+                document.getElementById('daysInput').addEventListener('input', function() {
+                    let value = parseInt(this.value);
+                    if (isNaN(value) || value < 1) {
+                        this.value = 1;
+                    } else if (value > 31) {
+                        this.value = 31;
+                    }
+                    updateTotal();
+                });
+
+                // Event delegation for incident checkboxes
+                document.addEventListener('change', function(e) {
+                    if (e.target.classList.contains('incident-checkbox')) {
+                        updateTotal();
+                    }
+                });
 
                 function updateTotal() {
                     const roomPrice = parseFloat(document.getElementById('roomPrice').value) || 0;
-                    const additional = parseFloat(document.getElementById('additionalAmount').value) || 0;
                     const days = parseInt(document.getElementById('daysInput').value) || 0;
 
-                    let total = (roomPrice * days) + additional;
+                    // Calculate room amount
+                    const roomAmount = roomPrice * days;
+                    document.getElementById('roomAmount').value = `₱${roomAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+
+                    // Calculate incident charges total
+                    let incidentTotal = 0;
+                    document.querySelectorAll('.incident-checkbox:checked').forEach(checkbox => {
+                        incidentTotal += parseFloat(checkbox.dataset.amount) || 0;
+                    });
+
+                    let total = roomAmount + incidentTotal;
 
                     document.getElementById('totalAmount').value =
                         `₱${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
                 }
-            </script>
 
+                // Form validation
+                document.getElementById('billingForm').addEventListener('submit', function(e) {
+                    const days = parseInt(document.getElementById('daysInput').value);
+                    const roomAmount = parseFloat(document.getElementById('roomPrice').value) * days;
 
-
-            <!-- JS to auto-fill room info -->
-            <script>
-                const guestRoomData = <?= json_encode($guestData) ?>;
-
-                const guestSelect = document.getElementById('guestSelect');
-                const roomInfo = document.getElementById('roomInfo');
-
-                guestSelect.addEventListener('change', function() {
-                    const selectedId = this.value;
-                    if (guestRoomData[selectedId]) {
-                        const data = guestRoomData[selectedId];
-                        roomInfo.value = `${data.room_type} (₱${data.price})`;
-                    } else {
-                        roomInfo.value = '';
+                    if (days < 1 || days > 31) {
+                        e.preventDefault();
+                        alert('Please enter a valid number of days (1-31).');
+                        return false;
                     }
+
+                    if (roomAmount <= 0) {
+                        e.preventDefault();
+                        alert('Invalid room amount calculation.');
+                        return false;
+                    }
+
+                    return true;
                 });
             </script>
-
-
         </div>
 
-
-
+        <!-- Guest List with Unpaid Months -->
         <div class="room-content ">
             <div class="card shadow-sm p-4">
                 <?php
-                include '../connect.php';
-
-                function getUnpaidMonths($checkinDate, $guestId, $conn)
+                // FIXED: Function to get unpaid months for CURRENT stay only
+                function getUnpaidMonths($guestId, $conn)
                 {
                     $unpaidMonths = [];
 
-                    // Start from the check-in month
-                    $start = new DateTime($checkinDate);
-                    $start->modify('first day of this month');
+                    // Get current check-in date for this specific stay
+                    $checkin_sql = "SELECT checkin_date, checkout_date FROM guests WHERE guest_id = ? AND status = 'checked_in'";
+                    $stmt_check = $conn->prepare($checkin_sql);
+                    $stmt_check->bind_param("i", $guestId);
+                    $stmt_check->execute();
+                    $result_check = $stmt_check->get_result();
+                    $guest_data = $result_check->fetch_assoc();
+                    $stmt_check->close();
 
-                    // Up to the current month
-                    $now = new DateTime();
+                    if (!$guest_data) {
+                        return $unpaidMonths;
+                    }
+
+                    $current_checkin = $guest_data['checkin_date'];
+
+                    // If guest is checked out, use checkout_date as end date, otherwise use current date
+                    $end_date = $guest_data['checkout_date'] ? $guest_data['checkout_date'] : date('Y-m-d');
+
+                    $start = new DateTime($current_checkin);
+                    $start->modify('first day of this month');
+                    $now = new DateTime($end_date);
                     $now->modify('first day of this month');
 
                     while ($start <= $now) {
-                        $billMonth = $start->format('Y-m'); // e.g., "2025-07"
+                        $billMonth = $start->format('Y-m');
 
-                        // Check if this month has a transaction
-                        $stmt = $conn->prepare("SELECT 1 FROM transactions WHERE guest_id = ? AND bill_month = ?");
-                        $stmt->bind_param("is", $guestId, $billMonth);
+                        // Check if transaction exists for this month AND is from current stay period
+                        $stmt = $conn->prepare("
+                            SELECT 1 FROM transactions 
+                            WHERE guest_id = ? AND bill_month = ? 
+                            AND transaction_date >= ?
+                        ");
+                        $stmt->bind_param("iss", $guestId, $billMonth, $current_checkin);
                         $stmt->execute();
                         $stmt->store_result();
 
                         if ($stmt->num_rows === 0) {
-                            $unpaidMonths[] = $start->format('F Y'); // e.g., "July 2025"
+                            $unpaidMonths[] = $start->format('F Y');
                         }
-
+                        $stmt->close();
                         $start->modify('+1 month');
                     }
-
                     return $unpaidMonths;
                 }
                 ?>
@@ -397,22 +654,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <tbody>
                         <?php
                         $sql = "SELECT 
-            g.guest_id,
-            g.first_name,
-            g.last_name,
-            g.checkin_date,
-            r.room_id,
-            rt.type AS room_type
-        FROM guests g
-        LEFT JOIN rooms r ON g.room_id = r.room_id
-        LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
-        WHERE g.status = 'checked_in' 
-        ORDER BY g.checkin_date DESC";
+                            g.guest_id,
+                            g.first_name,
+                            g.last_name,
+                            g.checkin_date,
+                            r.room_id,
+                            rt.type AS room_type
+                        FROM guests g
+                        LEFT JOIN rooms r ON g.room_id = r.room_id
+                        LEFT JOIN room_types rt ON r.room_type_id = rt.room_type_id
+                        WHERE g.status = 'checked_in' 
+                        ORDER BY g.checkin_date DESC";
 
                         $result = $conn->query($sql);
 
                         while ($row = $result->fetch_assoc()) {
-                            $unpaidMonths = getUnpaidMonths($row['checkin_date'], $row['guest_id'], $conn);
+                            // FIXED: Pass guest_id and connection only
+                            $unpaidMonths = getUnpaidMonths($row['guest_id'], $conn);
 
                             if (!empty($unpaidMonths)) {
                                 echo "<tr>";
@@ -427,16 +685,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ?>
                     </tbody>
                 </table>
-
-
-
-
             </div>
         </div>
-
-
     </div>
-
 
     <script src="../node_modules/jquery/dist/jquery.min.js"></script>
     <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
@@ -445,14 +696,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         $(document).ready(function() {
             $('#myTable').DataTable();
-        });
-    </script>
-    <script>
-        $(document).ready(function() {
-            // Initialize DataTable
-
-
-            // Auto-close alerts after 5 seconds
             $('.alert').delay(5000).fadeOut(400);
         });
     </script>

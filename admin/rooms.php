@@ -357,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
                             <th>Room Type</th>
 
                             <th>Status</th>
-
+                            <th>Date Occupied</th>
 
                             <th>Action</th>
                         </tr>
@@ -366,7 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
                         <?php
                         include '../connect.php'; // Your DB connection
 
-                        $sql = "SELECT rooms.room_id, rooms.status, guests.first_name, guests.last_name, room_types.type
+                        $sql = "SELECT rooms.room_id, rooms.status, guests.first_name, guests.last_name, room_types.type, guests.checkin_date
         FROM rooms
         LEFT JOIN guests ON rooms.guest_id = guests.guest_id
         LEFT JOIN room_types ON rooms.room_type_id = room_types.room_type_id
@@ -389,6 +389,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
                             $badgeClass = $row['status'] === 'occupied' ? 'status-confirmed' : 'status-available';
 
                             echo "<td><span class='status-badge $badgeClass'>" . htmlspecialchars($status) . "</span></td>";
+
+                            echo "<td>" . htmlspecialchars($row['checkin_date'] ?? 'N/A') . "</td>";
 
                             echo "<td>";
 
@@ -414,6 +416,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
                             }
 
                             echo "</td>";
+
+
                             echo "</tr>";
                         }
                         ?>
@@ -491,26 +495,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive'])) {
                 <script>
                     document.getElementById('guestDropdown').addEventListener('change', function() {
                         let option = this.options[this.selectedIndex];
+                        let firstNameInput = document.getElementById('first_name');
+                        let lastNameInput = document.getElementById('last_name');
                         let emailInput = document.getElementById('email');
+                        let phoneInput = document.getElementById('phone');
 
                         if (this.value) {
                             // Fill in existing guest details
-                            document.getElementById('first_name').value = option.getAttribute('data-first');
-                            document.getElementById('last_name').value = option.getAttribute('data-last');
+                            firstNameInput.value = option.getAttribute('data-first');
+                            lastNameInput.value = option.getAttribute('data-last');
                             emailInput.value = option.getAttribute('data-email');
-                            document.getElementById('phone').value = option.getAttribute('data-phone');
+                            phoneInput.value = option.getAttribute('data-phone');
 
-                            // ✅ Make email read-only if existing guest
+                            // ✅ Make ALL fields read-only for existing guest
+                            firstNameInput.readOnly = true;
+                            lastNameInput.readOnly = true;
                             emailInput.readOnly = true;
+                            phoneInput.readOnly = true;
                         } else {
                             // Clear inputs for new guest
-                            document.getElementById('first_name').value = '';
-                            document.getElementById('last_name').value = '';
+                            firstNameInput.value = '';
+                            lastNameInput.value = '';
                             emailInput.value = '';
-                            document.getElementById('phone').value = '';
+                            phoneInput.value = '';
 
-                            // ✅ Allow typing email for new guest
+                            // ✅ Allow typing for ALL fields for new guest
+                            firstNameInput.readOnly = false;
+                            lastNameInput.readOnly = false;
                             emailInput.readOnly = false;
+                            phoneInput.readOnly = false;
                         }
                     });
                 </script>
