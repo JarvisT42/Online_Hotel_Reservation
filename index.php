@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>ShiBokBill - Luxury Stays</title>
+	<title>ShiBookBill - Luxury Stays</title>
 	<!-- Bootstrap CSS -->
 	<link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">
 	<!-- Font Awesome -->
@@ -32,7 +32,7 @@
 				<h2 class="display-3 mb-4">Comfort & Convenience</h2>
 				<p class="lead mb-5">
 					Enjoy the essentials of home in a simple, welcoming space at
-					<strong>ShiBokBill</strong> — your comfortable and affordable retreat.
+					<strong>ShiBookBill</strong> — your comfortable and affordable retreat.
 				</p>
 			</div>
 		</div>
@@ -268,7 +268,7 @@
 			<div class="text-center mb-5">
 				<h2 class="display-5 mb-3">Credits & Contributors</h2>
 				<p class="text-muted mx-auto" style="max-width: 700px;">
-					Acknowledging the talented individuals and partners behind the development of ShiBokBill Apartelle System.
+					Acknowledging the talented individuals and partners behind the development of ShiBookBill Apartelle System.
 				</p>
 			</div>
 

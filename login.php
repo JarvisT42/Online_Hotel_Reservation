@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShiBokBill - Admin Login</title>
+    <title>ShiBookBill - Admin Login</title>
     <!-- Bootstrap CSS -->
     <!-- <link rel="stylesheet" href="assets/bootstrap-5.3.6-dist/css/bootstrap.min.css">-->
     <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
@@ -479,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <nav class="login-navbar">
         <a href="index.php" class="brand-logo">
             <i class="fas fa-hotel"></i>
-            ShiBokBill
+            ShiBookBill
         </a>
         <a href="index.php" class="nav-button">
             <i class="fas fa-external-link-alt"></i> Home
@@ -515,7 +515,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </svg>
                 </div>
             </div>
-            <h2>ShiBokBill</h2>
+            <h2>ShiBookBill</h2>
             <p>Login</p>
         </div>
 
