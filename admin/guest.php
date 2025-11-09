@@ -33,19 +33,15 @@ function hasUnpaidBills($guest_id, $conn)
     $stmt_check->close();
 
     if (!$guest_data) {
-        return false; // Guest not found or not checked in
+        return false;
     }
 
     $current_checkin = $guest_data['checkin_date'];
-
-    // If guest is checked out, use checkout_date as end date, otherwise use current date
-    $end_date = $guest_data['checkout_date'] ? $guest_data['checkout_date'] : date('Y-m-d');
+    $current_checkout = $guest_data['checkout_date'] ?: date('Y-m-d');
 
     // Calculate months from CURRENT check-in date to end date
     $checkin = new DateTime($current_checkin);
-    $end = new DateTime($end_date);
-
-    // Start from the check-in month
+    $end = new DateTime($current_checkout);
     $checkin->modify('first day of this month');
     $end->modify('first day of this month');
 
@@ -56,23 +52,32 @@ function hasUnpaidBills($guest_id, $conn)
     }
 
     if (empty($expected_months)) {
-        return false; // No months expected
+        return false;
     }
 
-    // Check if we have PAID transaction records for all expected months of CURRENT stay
+    // NEW: Check for paid transactions that overlap with CURRENT stay period
     $placeholders = str_repeat('?,', count($expected_months) - 1) . '?';
     $sql = "
         SELECT COUNT(*) as transaction_count 
         FROM transactions 
         WHERE guest_id = ? 
         AND bill_month IN ($placeholders)
-        AND transaction_date >= ?
-        AND is_paid = '1'  -- Only count PAID transactions
+        AND is_paid = '1'
+        AND (
+            -- Transaction covers at least part of current stay
+            (bill_month = ? AND days_rendered > 0)
+            OR
+            -- More complex: check if transaction date range overlaps with current stay
+            (transaction_date BETWEEN ? AND ?)
+        )
     ";
 
     $stmt = $conn->prepare($sql);
-    $types = 'i' . str_repeat('s', count($expected_months)) . 's';
-    $params = array_merge([$guest_id], $expected_months, [$current_checkin]);
+    $types = 'i' . str_repeat('s', count($expected_months)) . 'sss';
+
+    // Build parameters: guest_id, expected_months, current_month, current_checkin, current_checkout
+    $params = array_merge([$guest_id], $expected_months, [$expected_months[0], $current_checkin, $current_checkout]);
+
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -81,20 +86,17 @@ function hasUnpaidBills($guest_id, $conn)
 
     $transaction_count = $row['transaction_count'];
 
-    // If PAID transaction count matches expected months, guest is fully paid for CURRENT stay
-    $has_all_transactions = $transaction_count == count($expected_months);
-
     // Check for unpaid additional charges from CURRENT stay only
     $sql_charges = "
         SELECT COUNT(*) as unpaid_count 
         FROM additional_charge 
         WHERE guest_id = ? 
         AND paid = 0
-        AND date >= ?
+        AND date BETWEEN ? AND ?
     ";
 
     $stmt2 = $conn->prepare($sql_charges);
-    $stmt2->bind_param("is", $guest_id, $current_checkin);
+    $stmt2->bind_param("iss", $guest_id, $current_checkin, $current_checkout);
     $stmt2->execute();
     $result2 = $stmt2->get_result();
     $row2 = $result2->fetch_assoc();
@@ -102,10 +104,8 @@ function hasUnpaidBills($guest_id, $conn)
 
     $unpaid_charges = $row2['unpaid_count'] > 0;
 
-    // Guest has unpaid bills if:
-    // 1. Missing PAID transaction records for some months of CURRENT stay, OR
-    // 2. Has unpaid additional charges from CURRENT stay
-    return !$has_all_transactions || $unpaid_charges;
+    // Guest has unpaid bills if missing transactions OR has unpaid charges
+    return ($transaction_count < count($expected_months)) || $unpaid_charges;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_out'])) {

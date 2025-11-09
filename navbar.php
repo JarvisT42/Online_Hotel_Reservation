@@ -1,8 +1,13 @@
   <nav class="navbar navbar-expand-lg navbar-light fixed-top">
       <div class="container">
-          <a class="navbar-brand logo" href="index.php">
+          <a class="navbar-brand logo d-flex align-items-center" href="index.php">
               <!-- <h1>ShiBokBill <span>APARTELLE</span></h1> -->
-              <h1>ShiBokBill </h1>
+              <div class="d-flex align-items-center">
+                  <img src="/assets/gfi.jpg" alt="GFI Logo" class="me-2" height="70">
+                  <img src="/assets/ite.png" alt="ITE Logo" class="me-2" height="70">
+                  <img src="/assets/shioji.png" alt="Shioji Logo" height="70">
+              </div>
+              <h1 class="ms-3 mb-0  ">ShiBokBill </h1>
 
           </a>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">

@@ -263,64 +263,51 @@
 
 
 	<!-- Testimonials Section -->
-	<!-- <section class="testimonials py-5" id="testimonials">
+	<section class="credits py-5" id="credits">
 		<div class="container">
 			<div class="text-center mb-5">
-				<h2 class="display-5 mb-3">Guest Reviews</h2>
-				<p class="text-muted mx-auto" style="max-width: 700px;">What our valued guests say about their experience</p>
+				<h2 class="display-5 mb-3">Credits & Contributors</h2>
+				<p class="text-muted mx-auto" style="max-width: 700px;">
+					Acknowledging the talented individuals and partners behind the development of ShiBokBill Apartelle System.
+				</p>
 			</div>
+
 			<div class="row g-4">
 				<div class="col-md-4">
-					<div class="testimonial-card h-100">
-						<div class="testimonial-text mb-4">
-							<p class="mb-0">The rooms are exceptionally clean and comfortable. The staff went above and beyond to make our stay memorable. Will definitely return!</p>
-						</div>
-						<div class="testimonial-author d-flex align-items-center">
-							<div class="author-img me-3">
-								<img src="https://randomuser.me/api/portraits/women/43.jpg" alt="Sarah Johnson" class="rounded-circle" width="60" height="60">
-							</div>
-							<div class="author-info">
-								<h4 class="h5 mb-0">Sarah Johnson</h4>
-								<p class="text-muted small mb-0">Business Traveler</p>
-							</div>
-						</div>
+					<div class="credit-card h-100 text-center p-4 border rounded shadow-sm">
+						<h4 class="h5 mb-1">Jonathan A. Gregorio</h4>
+						<p class="text-muted small mb-2">Lead Developer</p>
+						<p class="small mb-0">
+							Responsible for backend architecture, database management, and overall system optimization.
+						</p>
 					</div>
 				</div>
+
 				<div class="col-md-4">
-					<div class="testimonial-card h-100">
-						<div class="testimonial-text mb-4">
-							<p class="mb-0">Perfect location with easy access to everything. The breakfast was delicious with plenty of options. Highly recommend this apartelle!</p>
-						</div>
-						<div class="testimonial-author d-flex align-items-center">
-							<div class="author-img me-3">
-								<img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Michael Chen" class="rounded-circle" width="60" height="60">
-							</div>
-							<div class="author-info">
-								<h4 class="h5 mb-0">Michael Chen</h4>
-								<p class="text-muted small mb-0">Family Vacation</p>
-							</div>
-						</div>
+					<div class="credit-card h-100 text-center p-4 border rounded shadow-sm">
+						<h4 class="h5 mb-1">Christian Yangon</h4>
+						<p class="text-muted small mb-2">Documentation Specialist</p>
+						<p class="small mb-0">
+							Prepared project documentation, reports, and technical manuals required for the capstone presentation.
+						</p>
 					</div>
 				</div>
+
 				<div class="col-md-4">
-					<div class="testimonial-card h-100">
-						<div class="testimonial-text mb-4">
-							<p class="mb-0">Modern amenities combined with excellent service. The attention to detail throughout our stay was impressive. Five stars!</p>
-						</div>
-						<div class="testimonial-author d-flex align-items-center">
-							<div class="author-img me-3">
-								<img src="https://randomuser.me/api/portraits/women/68.jpg" alt="Jessica Williams" class="rounded-circle" width="60" height="60">
-							</div>
-							<div class="author-info">
-								<h4 class="h5 mb-0">Jessica Williams</h4>
-								<p class="text-muted small mb-0">Honeymoon</p>
-							</div>
-						</div>
+					<div class="credit-card h-100 text-center p-4 border rounded shadow-sm">
+						<h4 class="h5 mb-1">Ethel Rombawa</h4>
+						<p class="text-muted small mb-2">System Tester</p>
+						<p class="small mb-0">
+							Conducted testing, identified bugs, and ensured the system performed reliably across all modules.
+						</p>
 					</div>
 				</div>
 			</div>
 		</div>
-	</section> -->
+	</section>
+
+
+
 
 	<!-- Contact Section -->
 	<section class="contact py-5" id="contact">

@@ -1,5 +1,7 @@
 <?php
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 if (!isset($_SESSION['guest_logged_in'])) {
     header("Location: ../login.php");
     exit;
@@ -73,7 +75,6 @@ $guestId = $_SESSION['guest_id'] ?? null;
                                 echo "</tr>";
                             }
                         } else {
-                            echo "<tr><td colspan='4' class='text-center'>No room assigned</td></tr>";
                         }
                         $stmt->close();
                     } else {
@@ -84,29 +85,38 @@ $guestId = $_SESSION['guest_id'] ?? null;
             </table>
         </div>
 
-        <!-- Unpaid Additional Charges -->
+
+
+        <!-- NEW: All Additional Charges Table -->
         <div class="card shadow-sm p-4 mb-4">
-            <h3>Unpaid Additional Charges</h3>
-            <table class="table table-bordered">
+            <h3>All Additional Charges</h3>
+            <table class="table table-bordered" id="allChargesTable">
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Description Charge</th>
+                        <th>Description</th>
                         <th>Amount</th>
                         <th>Status</th>
+                        <th>Transaction ID</th>
+                        <th>Bill Month</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php
                     if ($guestId) {
                         $sql = "SELECT 
-                            date,
-                            description,
-                            amount,
-                            paid
-                        FROM additional_charge 
-                        WHERE guest_id = ? AND paid = 0
-                        ORDER BY date DESC";
+                            ac.id,
+                            ac.date,
+                            ac.description,
+                            ac.amount,
+                            ac.paid,
+                            ac.transaction_id,
+                            t.bill_month,
+                            t.transaction_date
+                        FROM additional_charge ac
+                        LEFT JOIN transactions t ON ac.transaction_id = t.transaction_id
+                        WHERE ac.guest_id = ?
+                        ORDER BY ac.date DESC, ac.id DESC";
 
                         $stmt = $conn->prepare($sql);
                         $stmt->bind_param("i", $guestId);
@@ -114,35 +124,83 @@ $guestId = $_SESSION['guest_id'] ?? null;
                         $result = $stmt->get_result();
 
                         if ($result->num_rows > 0) {
-                            $totalUnpaid = 0;
+                            $totalAllCharges = 0;
+                            $totalPaid = 0;
+                            $totalUnpaidAll = 0;
+
                             while ($row = $result->fetch_assoc()) {
                                 $status = $row['paid'] ?
                                     "<span class='badge bg-success'>Paid</span>" :
                                     "<span class='badge bg-danger'>Unpaid</span>";
 
-                                $totalUnpaid += $row['amount'];
+                                $transactionId = $row['transaction_id'] ?
+                                    "<span class='badge bg-info'>#" . $row['transaction_id'] . "</span>" :
+                                    "<span class='text-muted'>Not assigned</span>";
+
+                                $billMonth = $row['bill_month'] ?
+                                    date("F Y", strtotime($row['bill_month'] . '-01')) :
+                                    "<span class='text-muted'>-</span>";
+
+                                $totalAllCharges += $row['amount'];
+                                if ($row['paid']) {
+                                    $totalPaid += $row['amount'];
+                                } else {
+                                    $totalUnpaidAll += $row['amount'];
+                                }
 
                                 echo "<tr>";
                                 echo "<td>" . date("M d, Y", strtotime($row['date'])) . "</td>";
                                 echo "<td>" . htmlspecialchars($row['description']) . "</td>";
                                 echo "<td>₱" . number_format($row['amount'], 2) . "</td>";
                                 echo "<td>$status</td>";
+                                echo "<td>$transactionId</td>";
+                                echo "<td>$billMonth</td>";
                                 echo "</tr>";
                             }
-                            // Display total row
-                            echo "<tr class='table-warning'>";
-                            echo "<td colspan='2'><strong>Total Unpaid Charges</strong></td>";
-                            echo "<td><strong>₱" . number_format($totalUnpaid, 2) . "</strong></td>";
-                            echo "<td></td>";
-                            echo "</tr>";
                         } else {
-                            // echo "<tr><td colspan='4' class='text-center'>No unpaid additional charges</td></tr>";
+                            echo "<tr><td colspan='6' class='text-center'>No additional charges found</td></tr>";
                         }
                         $stmt->close();
                     }
                     ?>
                 </tbody>
             </table>
+
+            <!-- Summary Section - Moved outside the DataTable -->
+            <?php
+            if ($guestId && isset($totalAllCharges) && $totalAllCharges > 0) {
+                echo '<div class="mt-3">';
+                echo '<div class="row">';
+                echo '<div class="col-md-4">';
+                echo '<div class="card bg-success text-white">';
+                echo '<div class="card-body p-3">';
+                echo '<h6 class="card-title">Total Paid Charges</h6>';
+                echo '<h4>₱' . number_format($totalPaid, 2) . '</h4>';
+                echo '</div>';
+                echo '</div>';
+                echo '</div>';
+
+                echo '<div class="col-md-4">';
+                echo '<div class="card bg-danger text-white">';
+                echo '<div class="card-body p-3">';
+                echo '<h6 class="card-title">Total Unpaid Charges</h6>';
+                echo '<h4>₱' . number_format($totalUnpaidAll, 2) . '</h4>';
+                echo '</div>';
+                echo '</div>';
+                echo '</div>';
+
+                echo '<div class="col-md-4">';
+                echo '<div class="card bg-primary text-white">';
+                echo '<div class="card-body p-3">';
+                echo '<h6 class="card-title">Grand Total</h6>';
+                echo '<h4>₱' . number_format($totalAllCharges, 2) . '</h4>';
+                echo '</div>';
+                echo '</div>';
+                echo '</div>';
+                echo '</div>';
+                echo '</div>';
+            }
+            ?>
         </div>
 
         <!-- Bill History -->
@@ -173,12 +231,12 @@ $guestId = $_SESSION['guest_id'] ?? null;
                 t.room_charge,
                 t.total_amount,
                 t.is_paid,
-                t.created_at
+                t.transaction_date
             FROM transactions t
             LEFT JOIN rooms r ON t.room_id = r.room_id
             LEFT JOIN room_types rt ON t.room_type_id = rt.room_type_id
             WHERE t.guest_id = ?
-            ORDER BY t.created_at DESC";
+            ORDER BY t.transaction_date DESC";
 
                         $stmt = $conn->prepare($sql);
                         $stmt->bind_param("i", $guestId);
@@ -223,7 +281,7 @@ $guestId = $_SESSION['guest_id'] ?? null;
                                 echo "<td>$status</td>";
 
                                 // Created at
-                                echo "<td>" . date("M d, Y H:i", strtotime($row['created_at'])) . "</td>";
+                                echo "<td>" . date("M d, Y H:i", strtotime($row['transaction_date'])) . "</td>";
                                 echo "</tr>";
                             }
                         } else {
@@ -238,24 +296,6 @@ $guestId = $_SESSION['guest_id'] ?? null;
             </table>
         </div>
 
-        <!-- Transaction Details Modal -->
-        <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="transactionModalLabel">Transaction Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body" id="transactionDetails">
-                        <!-- Transaction details will be loaded here via JavaScript -->
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
 
     <script src="../node_modules/jquery/dist/jquery.min.js"></script>
@@ -265,32 +305,43 @@ $guestId = $_SESSION['guest_id'] ?? null;
 
     <script>
         $(document).ready(function() {
-            // Initialize DataTables
-            $('.table').DataTable({
+            // Initialize DataTables for regular tables
+            $('.table:not(#allChargesTable)').DataTable({
                 responsive: true,
                 order: [
                     [0, 'desc']
                 ]
             });
 
-            // Function to view transaction details
-            function viewTransactionDetails(transactionId) {
-                $.ajax({
-                    url: 'get_transaction_details.php',
-                    type: 'GET',
-                    data: {
-                        transaction_id: transactionId
-                    },
-                    success: function(response) {
-                        $('#transactionDetails').html(response);
-                        $('#transactionModal').modal('show');
-                    },
-                    error: function() {
-                        $('#transactionDetails').html('<div class="alert alert-danger">Error loading transaction details.</div>');
-                        $('#transactionModal').modal('show');
-                    }
-                });
-            }
+            // Initialize DataTables for All Additional Charges table with proper configuration
+            $('#allChargesTable').DataTable({
+                responsive: true,
+                order: [
+                    [0, 'desc']
+                ], // Order by first column (Date) descending
+                columns: [{
+                        data: 'date'
+                    }, // Column 0: Date
+                    {
+                        data: 'description'
+                    }, // Column 1: Description
+                    {
+                        data: 'amount'
+                    }, // Column 2: Amount
+                    {
+                        data: 'status'
+                    }, // Column 3: Status
+                    {
+                        data: 'transaction'
+                    }, // Column 4: Transaction ID
+                    {
+                        data: 'bill_month'
+                    } // Column 5: Bill Month
+                ],
+                language: {
+                    emptyTable: "No additional charges found"
+                }
+            });
 
             // Auto-close alerts after 5 seconds
             $('.alert').delay(5000).fadeOut(400);

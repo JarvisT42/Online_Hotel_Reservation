@@ -33,7 +33,7 @@
           <li class="nav-item ">
               <a class="nav-link <?php if ($currentPage == 'billing.php') echo 'active'; ?>" href="billing.php">
                   <i class="fas fa-sign-out-alt"></i>
-                  <span class="nav-text">Billing</span>
+                  <span class="nav-text">Bill Information</span>
               </a>
           </li>
           <!-- <li class="nav-item ">

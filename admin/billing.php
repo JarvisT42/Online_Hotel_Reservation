@@ -40,13 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Check for duplicate billing
-        $duplicate_check = $conn->prepare("SELECT transaction_id FROM transactions WHERE guest_id = ? AND bill_month = ?");
+        $duplicate_check = $conn->prepare("
+    SELECT t.transaction_id 
+    FROM transactions t
+    INNER JOIN guests g ON t.guest_id = g.guest_id
+    WHERE t.guest_id = ? 
+    AND t.bill_month = ? 
+    AND t.transaction_date >= g.checkin_date
+");
         $duplicate_check->bind_param("is", $guest_id, $bill_month);
         $duplicate_check->execute();
         $duplicate_result = $duplicate_check->get_result();
 
         if ($duplicate_result->num_rows > 0) {
-            $_SESSION['error_message'] = "Bill already exists for this guest and month.";
+            $_SESSION['error_message'] = "Bill already exists for this guest and month in their current stay.";
             header("Location: " . $_SERVER['PHP_SELF']);
             exit;
         }
@@ -83,15 +90,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Insert into transactions
         $stmt = $conn->prepare("
             INSERT INTO transactions 
-            (guest_id, room_id, room_type_id, bill_month, room_charge, total_amount, is_paid) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (guest_id, room_id, room_type_id, bill_month, days_rendered, room_charge, total_amount, is_paid) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->bind_param(
-            "iiisddi",
+            "iiisiddi",
             $guest_id,
             $room_id,
             $room_type_id,
             $bill_month,
+            $days,
             $room_charge,
             $total_amount,
             $paid
@@ -182,6 +190,8 @@ function getUnpaidMonthsgg($guest_id, $conn)
 }
 
 // Fixed calculateActualDays function
+// Fixed calculateActualDays function in PHP
+// Fixed calculateActualDays function in PHP
 function calculateActualDays($checkinDate, $billMonth)
 {
     $checkin = new DateTime($checkinDate);
@@ -189,8 +199,18 @@ function calculateActualDays($checkinDate, $billMonth)
     $billEnd = new DateTime($billMonth . '-01');
     $billEnd->modify('last day of this month');
 
-    // If check-in is after the bill month, return 0
-    if ($checkin > $billEnd) {
+    // Get current date for current month comparison
+    $currentDate = new DateTime();
+    $currentYearMonth = $currentDate->format('Y-m');
+
+    // If billing for current month, use current date as end date
+    $endDate = $billEnd;
+    if ($billMonth === $currentYearMonth) {
+        $endDate = $currentDate;
+    }
+
+    // If check-in is after the end date, return 0
+    if ($checkin > $endDate) {
         return 0;
     }
 
@@ -201,13 +221,15 @@ function calculateActualDays($checkinDate, $billMonth)
         $startDate = $checkin;
     }
 
+    // Reset times to avoid time calculation issues
+    $startDate->setTime(0, 0, 0);
+    $endDate->setTime(0, 0, 0);
+
     // Calculate days (inclusive)
-    $interval = $startDate->diff($billEnd);
+    $interval = $startDate->diff($endDate);
     $days = $interval->days + 1;
 
-    // Ensure days don't exceed month length
-    $daysInMonth = $billEnd->format('d');
-    return min($days, $daysInMonth);
+    return $days;
 }
 
 // FIXED: Function to get unpaid incident charges for CURRENT stay only
@@ -394,26 +416,43 @@ function getUnpaidIncidentCharges($guestId, $conn)
                 const guestData = <?= json_encode($guestData) ?>;
 
                 // Function to calculate actual days stayed
+                // Fixed calculateActualDays function
+                // Fixed calculateActualDays function
                 function calculateActualDays(checkinDate, billMonth) {
                     const checkin = new Date(checkinDate);
                     const billStart = new Date(billMonth + '-01');
                     const billEnd = new Date(billStart.getFullYear(), billStart.getMonth() + 1, 0);
 
-                    // If check-in is after bill month, return 0
-                    if (checkin > billEnd) return 0;
+                    // Get current date for the current month
+                    const currentDate = new Date();
+                    const currentYearMonth = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
 
+                    // If billing for current month, use current date as end date
+                    let endDate = billEnd;
+                    if (billMonth === currentYearMonth) {
+                        endDate = currentDate;
+                    }
+
+                    // If check-in is after the end date, return 0
+                    if (checkin > endDate) {
+                        return 0;
+                    }
+
+                    // If check-in is before bill month, use bill start
                     let startDate = checkin;
                     if (checkin < billStart) {
                         startDate = billStart;
                     }
 
-                    // Calculate difference in days (inclusive)
-                    const timeDiff = billEnd.getTime() - startDate.getTime();
-                    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                    // Reset times to midnight to avoid time calculation issues
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setHours(0, 0, 0, 0);
 
-                    // Don't exceed month length
-                    const daysInMonth = billEnd.getDate();
-                    return Math.min(daysDiff, daysInMonth);
+                    // Calculate days (inclusive) - this is the key fix
+                    const timeDiff = endDate.getTime() - startDate.getTime();
+                    const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                    return days;
                 }
 
                 document.getElementById('guestSelect').addEventListener('change', function() {
@@ -498,26 +537,21 @@ function getUnpaidIncidentCharges($guestId, $conn)
                         const currentYearMonth = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
                         const isCurrentMonth = (monthValue === currentYearMonth);
 
-                        // Get days in selected month
-                        const selectedDate = new Date(monthValue + '-01');
-                        const daysInSelectedMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
-                        const hasFullMonth = (actualDays >= daysInSelectedMonth);
-
-                        if (isCurrentMonth && !hasFullMonth) {
-                            // Current month, guest hasn't stayed full month - allow editing
+                        if (isCurrentMonth) {
+                            // Current month - allow editing since guest is still staying
                             daysInput.removeAttribute('readonly');
-                            daysInput.value = actualDays;
-                            daysExplanation.textContent = `Check-in Date: ${checkinDate}. Adjustable as guest hasn't stayed full month.`;
+                            daysExplanation.textContent = `Check-in Date: ${checkinDate}`;
                         } else {
-                            // Past month OR current month with full stay - readonly
+                            // Past month - fixed based on actual stay
                             daysInput.setAttribute('readonly', true);
-                            daysInput.value = actualDays;
-                            if (isCurrentMonth && hasFullMonth) {
-                                daysExplanation.textContent = `Check-in Date: ${checkinDate}. Fixed - guest stayed full month.`;
-                            } else {
-                                daysExplanation.textContent = `Check-in Date: ${checkinDate}. Fixed for past months.`;
-                            }
+                            const billStart = new Date(monthValue + '-01');
+                            const billEnd = new Date(billStart.getFullYear(), billStart.getMonth() + 1, 0);
+                            // daysExplanation.textContent = `Check-in Date: ${checkinDate}. Fixed for past month (${monthValue}-01 to ${monthValue}-${billEnd.getDate()}).`;
+                            daysExplanation.textContent = `Check-in Date: ${checkinDate}`;
+
                         }
+
+                        daysInput.value = actualDays;
                     } else {
                         daysInput.value = 0;
                         daysInput.setAttribute('readonly', true);
